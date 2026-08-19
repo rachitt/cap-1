@@ -373,12 +373,12 @@ All routes are prefixed `/api/v1`. Every route except `/health`, `/auth/register
 | POST | `/api/v1/accounts` | Open savings account at `0.00` | 201 | 401 |
 | GET | `/api/v1/accounts` | List own accounts + balances | 200 | 401 |
 | GET | `/api/v1/accounts/{id}/statements` | Paginated statement | 200 | 403 not owner, 404 |
-| POST | `/api/v1/beneficiaries` | Add beneficiary | 201 | 409 duplicate, 422 self |
+| POST | `/api/v1/beneficiaries` | Add beneficiary | 201 | 409 duplicate, 404 unknown account |
 | GET | `/api/v1/beneficiaries` | List beneficiaries | 200 | 401 |
 | DELETE | `/api/v1/beneficiaries/{id}` | Remove beneficiary | 204 | 403, 404 |
-| POST | `/api/v1/transfers` | Atomic transfer | 201 | 422 `INSUFFICIENT_FUNDS`, 422 cap exceeded, 403, 404 |
+| POST | `/api/v1/transfers` | Atomic transfer | 201 | 422 `INSUFFICIENT_FUNDS`, 422 self-transfer, 422 closed destination, 404 unknown destination |
 | GET | `/api/v1/transfers` | Own transfer history | 200 | 401 |
-| POST | `/api/v1/loans` | Apply, status `APPLIED` | 201 | 422 ineligible |
+| POST | `/api/v1/loans` | Apply, status `APPLIED` | 201 | 422 malformed input (no eligibility gate — see `DR-24`) |
 | GET | `/api/v1/loans` · `/loans/{id}` | Own loans and status timeline | 200 | 403, 404 |
 | GET | `/api/v1/admin/loans` | Pending queue, filter by status | 200 | 403 non-admin |
 | POST | `/api/v1/admin/loans/{id}/review` | `APPLIED → UNDER_REVIEW` | 200 | 409 illegal transition |
@@ -407,7 +407,7 @@ All routes are prefixed `/api/v1`. Every route except `/health`, `/auth/register
 | In-memory type | Python `Decimal`. **Never `float`, anywhere, at any layer.** |
 | Storage | SQLite `NUMERIC`, with SQLAlchemy `Numeric(precision=18, scale=2)` and a Decimal-preserving type decorator |
 | Scale | 2 decimal places |
-| Rounding | `ROUND_HALF_UP`, applied only where derivation occurs (e.g. loan EMI). Transfer amounts are exact and rejected if they carry more than 2 decimal places. |
+| Rounding | `ROUND_HALF_UP`, defined for any future derived amount. No AC requires a derived money value — loans end at `DISBURSED` with no repayment schedule (`A-04`) — so no derivation exists today. Transfer amounts are exact and rejected if they carry more than 2 decimal places. |
 | JSON serialisation | Decimal string (`"1234.56"`), never a JSON number — avoids IEEE-754 corruption in transit |
 | Frontend | Parsed and formatted as a fixed-point string. No arithmetic on money in the browser. |
 | Enforcement | New `money-precision-check` hook flags `float(`, `%f`, and float-typed money annotations at write time. |
@@ -479,7 +479,7 @@ the entity-level overview.
 | `Transaction` | `id`, `account_id`, `counterparty_account_id`, `direction` (`DEBIT`\|`CREDIT`), `amount`, `balance_after`, `transfer_id`, `description`, `created_at` | Two rows per transfer (one debit, one credit), sharing a `transfer_id`. Drives statements (`AC-03`). |
 | `Transfer` | `id`, `source_account_id`, `destination_account_id`, `amount`, `status` (`COMPLETED`\|`FAILED`), `failure_code`, `created_at` | One row per attempt; failed attempts are recorded but move no money |
 | `Beneficiary` | `id`, `customer_id`, `nickname`, `beneficiary_account_number`, `beneficiary_name`, `created_at`, `deleted_at` | Soft delete preserves historical transfer references (`AC-06`) |
-| `LoanApplication` | `id`, `customer_id`, `principal`, `tenure_months`, `declared_monthly_income`, `purpose`, `status`, `disbursement_account_id`, `created_at`, `updated_at` | Status per `AC-07` |
+| `LoanApplication` | `id`, `customer_id`, `principal`, `tenure_months`, `declared_monthly_income` (optional, informational only — no rule consumes it), `purpose`, `status`, `disbursement_account_id`, `created_at`, `updated_at` | Status per `AC-07` |
 | `LoanStateTransition` | `id`, `loan_id`, `from_status`, `to_status`, `actor_id`, `reason`, `created_at` | Append-only. Reason mandatory on approve/reject (`AC-08`). |
 | `AuditEntry` | `id`, `occurred_at`, `actor_id`, `actor_role`, `action`, `entity_type`, `entity_id`, `correlation_id`, `metadata_json` | **Append-only** (`NFR-02`). Backs `AC-09`. |
 | `Notification` | `id`, `customer_id`, `channel` (`EMAIL`\|`SMS`), `event_type`, `payload`, `status` (`QUEUED`\|`SENT`\|`FAILED`), `created_at`, `sent_at` | Enqueued in-transaction, dispatched out-of-transaction (`AC-10`) |
