@@ -123,7 +123,7 @@ policy under `backend/src/domain/` and is unit-tested in isolation.
 |---|---|
 | DR-05 | A customer registers with credentials and profile details and begins in `PENDING_KYC`. |
 | DR-06 | KYC must be completed and verified before login is activated. An unverified customer is refused with a distinct "pending KYC" response, not a generic authentication failure. |
-| DR-07 | The applicant must be at least 18 years old, derived from the date of birth supplied at registration. |
+| DR-07 | The brief specifies no age, date-of-birth, or other eligibility criteria for registration. None are imposed. |
 | DR-08 | KYC verification is stubbed but deterministic: a well-formed document verifies, and one reserved synthetic document number always rejects, so the failure path stays testable. |
 | DR-09 | There are two roles, `CUSTOMER` and `ADMIN`. Administrators are provisioned by the seed script. There is no self-service route to administrator privileges. |
 
@@ -143,9 +143,9 @@ policy under `backend/src/domain/` and is unit-tested in isolation.
 | DR-14 | A transfer amount must be strictly positive and carry at most two decimal places. |
 | DR-15 | A customer may not transfer to their own account. |
 | DR-16 | The destination account must exist and be active. |
-| DR-17 | The destination must be a registered beneficiary of the sender. Trust is established before money moves, not during. |
+| DR-17 | Beneficiaries are a convenience feature for saving and reusing payees (`AC-06`). A transfer does **not** require the destination to be a saved beneficiary; `AC-04` permits a transfer to any valid active account. |
 | DR-18 | A transfer whose amount exceeds the source balance fails with `InsufficientFundsException`. No partial state is written. |
-| DR-19 | A configurable **daily transfer cap** applies per customer per calendar day (UTC). Exceeding it fails under its own error code, distinct from insufficient funds, so the customer knows which limit they hit. |
+| DR-19 | The brief specifies no transfer limits, caps, or velocity controls. None are imposed. |
 | DR-20 | Debit, credit, transaction records, and the audit entry commit together in a single transaction, under a row lock on the source account, or not at all. |
 | DR-21 | Notification dispatch is decoupled from the transfer transaction. A dispatch failure never rolls back a committed transfer. |
 | DR-22 | Failed transfer attempts are recorded and audited. They move no money. |
@@ -155,7 +155,7 @@ policy under `backend/src/domain/` and is unit-tested in isolation.
 | Rule | Statement |
 |---|---|
 | DR-23 | A loan progresses `APPLIED → UNDER_REVIEW → APPROVED or REJECTED → DISBURSED`. Any other transition is refused. |
-| DR-24 | Eligibility requires the principal and tenure to fall within configured bounds and the resulting instalment-to-income ratio to stay under a ceiling. |
+| DR-24 | The brief states no loan eligibility criteria. Application input is validated for structural validity only (principal positive and at most two decimal places, tenure a positive whole number of months). No income, amount, or ratio thresholds are invented; the approve/reject decision rests entirely with the administrator under `AC-08`. |
 | DR-25 | Approval and rejection both require a non-empty reason. An administrator cannot decide silently. |
 | DR-26 | Every state transition is appended to an immutable transition history recording the actor, the reason, and the timestamp. |
 | DR-27 | Disbursement credits an existing active savings account belonging to the applicant. |

@@ -175,7 +175,7 @@ drives iteration, not grading.
 | IN-05 | Viewing current balance across owned accounts |
 | IN-06 | Viewing paginated account statements / transaction history |
 | IN-07 | Adding, listing, and removing beneficiaries |
-| IN-08 | Transferring money to a registered beneficiary's account, atomically |
+| IN-08 | Transferring money to another account, atomically (`AC-04`) |
 | IN-09 | Applying for a personal loan and tracking its status |
 
 **Internal / system functionality**
@@ -236,7 +236,7 @@ the ACs are the grading contract, none can be deferred. The MVP is therefore sli
 |---|---|---|---|---|
 | G1 | `auth` | `AC-01` | — | Register, KYC stub, activate, login, JWT issuance, role model, `/health`, correlation-ID logging. Establishes the `NFR-04` authentication boundary that every later route relies on. |
 | G2 | `accounts` | `AC-02`, `AC-03`, `AC-09` (foundation) | G1 | Savings account creation at `0.00`, balance retrieval, paginated statements, and the append-only audit ledger module. |
-| G3 | `payments` | `AC-04`, `AC-05`, `AC-06`, `AC-10` (transfer half) | G2 | Beneficiary CRUD, atomic transfer with `InsufficientFundsException`, daily transfer cap, notification module. |
+| G3 | `payments` | `AC-04`, `AC-05`, `AC-06`, `AC-10` (transfer half) | G2 | Beneficiary CRUD, atomic transfer with `InsufficientFundsException`, notification module. |
 | G4 | `loans` | `AC-07`, `AC-08`, `AC-09` (viewer), `AC-10` (loan half) | G3 | Loan application, state machine, admin review queue with mandatory reason, admin audit viewer, notification on every state transition. |
 
 ### 6.2 Cross-cutting module placement (circular-dependency avoidance)
@@ -418,8 +418,8 @@ A single SQLite transaction encloses the entire operation:
 
 1. Begin transaction; acquire a row lock on the source account.
 2. Re-read the source balance inside the lock.
-3. Evaluate `transfer_policy` — positive amount, 2dp maximum, not self, destination active,
-   destination is a registered beneficiary, sufficient funds, daily cap not exceeded.
+3. Evaluate `transfer_policy` — positive amount, 2dp maximum, not self, destination
+   exists and is active, sufficient funds.
 4. On failure, raise `InsufficientFundsException` (or the relevant policy exception) and
    **roll back**. No partial write, no audit entry for a non-event, no notification.
 5. On success, debit source, credit destination, write the transaction record, append the
@@ -456,9 +456,9 @@ Four files minimum, all pure and dependency-free. Every rule below was checked a
 | File | Rules | AC linkage |
 |---|---|---|
 | `money.py` | Decimal construction, 2dp validation, `ROUND_HALF_UP`, non-negative and positive-amount guards, safe parse/format | `NFR-01`, all money ACs |
-| `kyc_policy.py` | Document type and format validation; applicant age >= 18 from DOB; deterministic stub verdict (well-formed → `VERIFIED`; reserved synthetic document number → `REJECTED`, so the failure path is testable); login blocked until `VERIFIED` | `AC-01` |
-| `transfer_policy.py` | Amount > 0 and <= 2dp; no self-transfer; destination account exists and is active; destination is a registered beneficiary of the sender; sufficient funds → else `InsufficientFundsException`; **daily transfer cap per customer per calendar day (UTC)** | `AC-04`, `AC-05`, `AC-06` |
-| `loan_eligibility_policy.py` | Principal within `[min, max]`; tenure within `[min, max]` months; declared monthly income present; EMI-to-income ratio ceiling; legal state-transition matrix for `APPLIED → UNDER_REVIEW → APPROVED/REJECTED → DISBURSED`; mandatory non-empty reason on approve and reject | `AC-07`, `AC-08` |
+| `kyc_policy.py` | Document type and format validation; deterministic stub verdict (well-formed → `VERIFIED`; reserved synthetic document number → `REJECTED`, so the failure path is testable); login blocked until `VERIFIED` | `AC-01` |
+| `transfer_policy.py` | Amount > 0 and <= 2dp; no self-transfer (`AC-04` says "another account"); destination account exists and is active; sufficient funds → else `InsufficientFundsException`. No transfer cap: the brief specifies none. | `AC-04`, `AC-05` |
+| `loan_eligibility_policy.py` | Structural validation only — principal > 0 and <= 2dp, tenure a positive whole number of months. The brief states no eligibility criteria, so no income, amount, or ratio thresholds are invented; the decision rests with the administrator (`AC-08`). Legal state-transition matrix for `APPLIED → UNDER_REVIEW → APPROVED/REJECTED → DISBURSED`; mandatory non-empty reason on approve and reject | `AC-07`, `AC-08` |
 
 **Explicitly excluded rule:** minimum account balance. It contradicts `AC-02` (new savings
 account initialises to `0.00`). Under the Spec-Is-Truth rule, the brief's AC wins. Recorded in
@@ -515,11 +515,9 @@ interface so they can be swapped later without touching the Service layer.
 | E-01 | Transfer amount exceeds balance | `InsufficientFundsException` → 422; full rollback; zero money moved (`AC-05`) |
 | E-02 | Transfer to own account | 422 rejected by `transfer_policy` |
 | E-03 | Destination account does not exist or is closed | 404 / 422; no partial write |
-| E-04 | Destination is not a registered beneficiary | 403; enforces the `AC-06` → `AC-04` journey |
 | E-05 | Zero or negative amount | 422 |
 | E-06 | Amount with more than 2 decimal places | 422; no silent rounding |
 | E-07 | Concurrent transfers from the same account (double-spend) | Row lock serialises; second attempt sees the updated balance; no overdraft |
-| E-08 | Daily transfer cap exceeded | 422 with a distinct error code, separate from insufficient funds |
 | E-09 | Login before KYC verification | 403 `PENDING_KYC`, not 401 — distinguishable in tests (`AC-01`) |
 | E-10 | KYC submitted twice | 409 |
 | E-11 | Illegal loan transition (e.g. `APPLIED → DISBURSED`) | 409; state matrix in `loan_eligibility_policy` (`AC-07`) |
@@ -643,9 +641,9 @@ assumption changes and the spec is regenerated.
 
 | # | Assumption | Basis |
 |---|---|---|
-| A-01 | The daily transfer cap is a **configurable** limit read from the Config layer, defaulting to `50000.00` per customer per calendar day (UTC), with the failure surfaced under a distinct error code separate from insufficient funds. | Confirmed as an added Horizon-specific rule; the brief specifies no value, so it is made configurable rather than hard-coded. |
+| A-01 | *Withdrawn.* A daily transfer cap was proposed and rejected by the user. The brief specifies no transfer limits, so none are imposed. | Stick-to-the-brief: the spec may not assert what the source document never stated. |
 | A-02 | KYC stub verification is **deterministic**, not random: a well-formed document verifies, and one reserved synthetic document number always rejects. | A random stub makes `AC-01`'s failure path untestable. |
-| A-03 | A transfer destination must be a registered beneficiary of the sender. | Brief §6.1 specifies the journey as "Select beneficiary → enter amount → confirm". |
+| A-03 | *Withdrawn.* A beneficiary precondition on transfers was proposed and rejected by the user. `AC-04` reads "transfer money to another account" with no such gate; beneficiaries (`AC-06`) are an independent convenience feature and are **not** a prerequisite of `AC-04`. | Stick-to-the-brief: §6.1 describes a UI journey, not a constraint on `AC-04`. |
 | A-04 | Loan disbursement credits an existing savings account of the applicant; it does not create a new account or a loan-servicing schedule. | `AC-07` ends at `DISBURSED`; repayment is not in any AC. |
 | A-05 | Single currency throughout. | No AC mentions currency conversion. |
 | A-06 | Statements are paginated with a default page size of 20 and are ordered most-recent-first. | `AC-03` says "list statements" without pagination detail; unbounded lists are a defect at any scale. |
@@ -683,8 +681,10 @@ Socratic interview:
 
 - Q1 / Q2 — Distinction target, full 20 hours available, Good-to-Have items #11–15 in scope.
 - Q3 — Four-group sequencing confirmed, with audit and notification as cross-cutting modules.
-- Q4 — Four domain policy files confirmed; daily transfer cap **added**; minimum balance
-  **rejected** as contradicting `AC-02`.
+- Q4 — Four domain policy files confirmed. Minimum balance **rejected** as contradicting `AC-02`.
+  A daily transfer cap was initially added, then **withdrawn** by the user: the brief specifies no
+  cap and none may be invented. Likewise withdrawn: the beneficiary precondition on transfers
+  (`A-03`), a minimum applicant age, and all loan eligibility thresholds.
 - Q5 — Option A with the `src/domain/` blend.
 - Q6 — JWT bearer, access-only, 30 minutes, stateless.
 - Q7 — `CUSTOMER` / `ADMIN`, admin seeded, no self-service admin registration.
