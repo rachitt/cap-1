@@ -1,1 +1,4434 @@
-[]
+[
+  {
+    "id": "F001",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "All eight domain enums expose exactly the member names specified in the BRD data model",
+    "steps": [
+      "Import Role, CustomerStatus, KycStatus, AccountStatus, TransactionDirection, TransferStatus, LoanStatus and NotificationStatus from backend.src.types",
+      "Assert set(Role) member values equal {'CUSTOMER','ADMIN'}",
+      "Assert set(LoanStatus) member values equal {'APPLIED','UNDER_REVIEW','APPROVED','REJECTED','DISBURSED'}",
+      "Assert every enum member is a str subclass so it serialises to JSON as its value"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F002",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Every domain exception subclasses DomainError and exposes a distinct non-empty error_code",
+    "steps": [
+      "Import DomainError and its seven named subclasses from backend.src.types",
+      "Assert each subclass is a subclass of DomainError",
+      "Assert InsufficientFundsException().error_code == 'INSUFFICIENT_FUNDS'",
+      "Assert the set of error_code values across all subclasses has no duplicates and none is empty"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F003",
+    "category": "integration",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "No exception type exists for a withdrawn rule such as a transfer cap or beneficiary precondition",
+    "steps": [
+      "Run: grep -rniE 'DailyTransferCap|CapExceeded|NotBeneficiary|Eligibility.*Error' backend/src/types/",
+      "Assert the command exits with status 1 (no matches)",
+      "Enumerate all DomainError subclasses and assert none relates to a transfer cap, velocity limit or beneficiary requirement"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F004",
+    "category": "integration",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "The types package has zero outbound imports to any higher layer",
+    "steps": [
+      "Run: grep -rnE 'from (backend\\.)?src\\.(config|repository|service|api)|import (backend\\.)?src\\.(config|repository|service|api)' backend/src/types/",
+      "Assert the command exits with status 1 (no matches found)",
+      "Import backend.src.types in a fresh interpreter and assert no ImportError is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F005",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "The types package passes mypy in strict mode with zero errors",
+    "steps": [
+      "Run: cd backend && uv run mypy --strict src/types/",
+      "Assert the process exit code is 0",
+      "Assert stdout contains 'Success' and does not contain 'error:'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F006",
+    "category": "security",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "The JWT signing key is environment-sourced with no hard-coded fallback",
+    "steps": [
+      "Run: grep -rniE 'secret[_-]?key\\s*[:=]\\s*[\"'\\''][A-Za-z0-9]' backend/src/config/",
+      "Assert the command produces no output (no literal key assigned in source)",
+      "Unset JWT_SECRET_KEY and instantiate Settings inside pytest.raises for a validation error",
+      "Assert the error is raised and no default key is used"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F007",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "JWT expiry and database URL are typed settings overridable from the environment",
+    "steps": [
+      "Instantiate Settings with JWT_SECRET_KEY set and assert jwt_expiry_minutes is a positive int",
+      "Set JWT_EXPIRY_MINUTES='15' and reload Settings",
+      "Assert settings.jwt_expiry_minutes == 15",
+      "Set DATABASE_URL to a temporary path, reload, and assert settings.database_url reflects it"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F008",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "The default statement page size is a configurable setting, not a service-layer literal",
+    "steps": [
+      "Instantiate Settings and assert statement_page_size is a positive int",
+      "Override STATEMENT_PAGE_SIZE='5' in the environment and reload Settings",
+      "Assert settings.statement_page_size == 5",
+      "Run: grep -rnE 'page_size\\s*=\\s*[0-9]+' backend/src/service/ and assert no hard-coded default is found"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F009",
+    "category": "integration",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "No invented transfer cap or loan eligibility threshold exists in configuration",
+    "steps": [
+      "Run: grep -rniE 'daily_cap|transfer_cap|velocity|max_principal|min_principal|income_ratio|max_tenure' backend/src/config/",
+      "Assert the command exits with status 1 (no matches)",
+      "Introspect the Settings model field names and assert none contains 'cap' or 'eligib'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F010",
+    "category": "integration",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Config layer imports no layer above Types and typechecks strictly",
+    "steps": [
+      "Run: grep -rnE 'from (backend\\.)?src\\.(repository|service|api)' backend/src/config/",
+      "Assert the command exits with status 1",
+      "Run: cd backend && uv run mypy --strict src/config/ and assert exit code 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F011",
+    "category": "security",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "A .env.example documents required variables and contains no real secret values",
+    "steps": [
+      "Assert backend/.env.example exists and contains JWT_SECRET_KEY and DATABASE_URL",
+      "Assert .env is listed in .gitignore",
+      "Assert no value in .env.example matches a high-entropy secret pattern"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F012",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "parse_money returns an exact Decimal for well-formed 2dp input",
+    "steps": [
+      "Call parse_money('1234.56')",
+      "Assert the result equals Decimal('1234.56') exactly",
+      "Assert the result type is Decimal and not float"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F013",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "parse_money rejects input with more than two decimal places instead of silently rounding",
+    "steps": [
+      "Call parse_money('10.005') inside a pytest.raises(MoneyPrecisionError) block",
+      "Assert the exception is raised",
+      "Call parse_money('10.001') and assert MoneyPrecisionError is raised",
+      "Assert no rounded value such as Decimal('10.00') is ever returned for these inputs"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F014",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "quantize_money rounds half away from zero to two decimal places",
+    "steps": [
+      "Assert quantize_money(Decimal('2.345')) == Decimal('2.35')",
+      "Assert quantize_money(Decimal('2.344')) == Decimal('2.34')",
+      "Assert quantize_money(Decimal('2.355')) == Decimal('2.36')",
+      "Assert the returned exponent is -2 for every case"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F015",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "Positive and non-negative money guards distinguish zero correctly",
+    "steps": [
+      "Assert require_positive(Decimal('0.01')) does not raise",
+      "Assert require_positive(Decimal('0.00')) raises a DomainError subclass",
+      "Assert require_positive(Decimal('-1.00')) raises",
+      "Assert require_non_negative(Decimal('0.00')) does not raise while require_non_negative(Decimal('-0.01')) raises"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F016",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "format_money renders a fixed two-decimal string for whole and fractional amounts",
+    "steps": [
+      "Assert format_money(Decimal('5')) == '5.00'",
+      "Assert format_money(Decimal('1234.5')) == '1234.50'",
+      "Assert format_money(Decimal('0')) == '0.00'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F017",
+    "category": "security",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "The money policy module contains no float construction or float type annotation",
+    "steps": [
+      "Run: grep -nE 'float\\(|:\\s*float|%f' backend/src/domain/money.py",
+      "Assert the command exits with status 1 (no matches)",
+      "Run: grep -nE '^(from|import) ' backend/src/domain/money.py",
+      "Assert every import line references only decimal, typing, or src.types"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F018",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "Money values round-trip through SQLite as Decimal with full precision preserved",
+    "steps": [
+      "Create an in-memory SQLite table with a MoneyType column",
+      "Insert Decimal('1234.56') and commit",
+      "Read the row back and assert the value is exactly Decimal('1234.56')",
+      "Assert isinstance(value, Decimal) is True and isinstance(value, float) is False"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F019",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "MoneyType preserves trailing-zero scale for whole-currency amounts",
+    "steps": [
+      "Insert Decimal('100.00') through a MoneyType column and read it back",
+      "Assert the returned value equals Decimal('100.00')",
+      "Assert str(value) == '100.00' so the two-decimal scale survives persistence"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F020",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "The session scope rolls back every write when an exception escapes the block",
+    "steps": [
+      "Open a session scope and insert one account row without committing explicitly",
+      "Raise a RuntimeError inside the scope and catch it outside",
+      "Open a new session and count rows in the accounts table",
+      "Assert the count is 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F021",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "The session scope commits all writes when the block exits normally",
+    "steps": [
+      "Open a session scope, insert one account row, and exit the block without error",
+      "Open a new session and query for the inserted row",
+      "Assert exactly one row is returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F022",
+    "category": "integration",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "Alembic upgrade head builds the full schema from an empty database",
+    "steps": [
+      "Delete any existing SQLite database file",
+      "Run: cd backend && uv run alembic upgrade head",
+      "Assert the process exit code is 0",
+      "Query sqlite_master and assert tables customers, kyc_records, accounts, transactions, transfers, beneficiaries, loan_applications, loan_state_transitions, audit_entries and notifications all exist"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F023",
+    "category": "integration",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "No money column in the migrated schema is stored as REAL or FLOAT",
+    "steps": [
+      "Run alembic upgrade head against a clean database",
+      "Query PRAGMA table_info(accounts) and locate the balance column",
+      "Assert its declared type starts with 'NUMERIC'",
+      "Query sqlite_master for all CREATE TABLE statements and assert none contains 'REAL' or 'FLOAT'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F024",
+    "category": "integration",
+    "story": "E1-S4",
+    "group": "B",
+    "description": "Repository layer contains no imports from Service or API layers",
+    "steps": [
+      "Run: grep -rnE 'from (backend\\.)?src\\.(service|api)|import (backend\\.)?src\\.(service|api)' backend/src/repository/",
+      "Assert the command exits with status 1 (no matches)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F025",
+    "category": "functional",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "GET /health returns 200 with status ok and completes within one second",
+    "steps": [
+      "Start the backend and wait for the startup event to complete",
+      "Record a monotonic timestamp, then issue GET /health",
+      "Assert the response status is 200 and the JSON body field 'status' equals 'ok'",
+      "Assert the elapsed wall-clock time for the request is under 1.0 second"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F026",
+    "category": "integration",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "The health check exercises a real database round-trip rather than returning a static literal",
+    "steps": [
+      "Point the application at an unreachable or corrupt database URL",
+      "Issue GET /health",
+      "Assert the response status is not 200, proving the handler actually queries the database"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F027",
+    "category": "functional",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "Each request produces a parseable JSON log line carrying the four required keys",
+    "steps": [
+      "Capture stdout while issuing GET /health",
+      "Parse each emitted line with json.loads and assert no line fails to parse",
+      "Assert at least one parsed record contains the keys timestamp, level, message and correlation_id",
+      "Assert the correlation_id value is a non-empty string"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F028",
+    "category": "functional",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "A supplied X-Correlation-ID propagates into both the response header and the log records",
+    "steps": [
+      "Issue GET /health with header X-Correlation-ID: test-corr-123",
+      "Assert the response header X-Correlation-ID equals 'test-corr-123'",
+      "Assert at least one captured JSON log record has correlation_id == 'test-corr-123'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F029",
+    "category": "functional",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "Absent a supplied header the middleware generates a distinct correlation ID per request",
+    "steps": [
+      "Issue two sequential GET /health requests with no X-Correlation-ID header",
+      "Collect the correlation_id from each response header",
+      "Assert both values are non-empty and parse as UUIDs",
+      "Assert the two values are not equal"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F030",
+    "category": "security",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "Passwords and bearer tokens are replaced with a redaction marker in emitted logs",
+    "steps": [
+      "Log a structured record containing password='Hunter2!' and authorization='Bearer abc.def.ghi'",
+      "Capture the emitted log output as a string",
+      "Assert 'Hunter2!' does not appear anywhere in the output",
+      "Assert 'abc.def.ghi' does not appear and '***REDACTED***' does appear"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F031",
+    "category": "security",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "KYC document numbers are redacted from log output",
+    "steps": [
+      "POST /api/v1/auth/register then submit a KYC payload with document_number='X1234567'",
+      "Capture all log output produced during the request",
+      "Assert 'X1234567' does not appear in any emitted log line"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F032",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "A well-formed KYC document deterministically returns a VERIFIED verdict",
+    "steps": [
+      "Call verify with document_type='PASSPORT' and document_number='P1234567'",
+      "Assert the returned verdict status is KycStatus.VERIFIED",
+      "Call verify twice more with identical input and assert the verdict is VERIFIED every time (determinism)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F033",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "The reserved synthetic document number always returns REJECTED with a non-empty stub_reason",
+    "steps": [
+      "Call verify with document_type='PASSPORT' and document_number='X0000000'",
+      "Assert the verdict status is KycStatus.REJECTED",
+      "Assert the verdict stub_reason is a non-empty string",
+      "Repeat the call three times and assert the result is REJECTED each time"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F034",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Unrecognised document types and malformed document numbers raise a validation error",
+    "steps": [
+      "Call verify with document_type='LIBRARY_CARD' inside pytest.raises and assert a validation error is raised",
+      "Call verify with document_type='PASSPORT' and document_number='!!' and assert a validation error is raised",
+      "Assert neither call returns a KycVerdict object"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F035",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "KYC verification does not gate on applicant age or date of birth",
+    "steps": [
+      "Call verify with a well-formed document for an applicant whose date_of_birth is 16 years ago",
+      "Assert the verdict status is KycStatus.VERIFIED",
+      "Repeat with a date_of_birth 60 years ago and assert the verdict is also VERIFIED",
+      "Assert the verdict does not differ based on date_of_birth"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F036",
+    "category": "integration",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "No age or eligibility threshold function exists in the KYC policy module",
+    "steps": [
+      "Run: grep -niE 'age|18|eligib|minor|adult' backend/src/domain/kyc_policy.py",
+      "Assert the command exits with status 1 (no matches)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F037",
+    "category": "integration",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "The KYC policy module is dependency-free and performs no I/O",
+    "steps": [
+      "Run: grep -nE '^(from|import) ' backend/src/domain/kyc_policy.py",
+      "Assert every import references only datetime, typing, dataclasses, enum or src.types",
+      "Run: grep -nE 'open\\(|requests\\.|httpx\\.|session|engine' backend/src/domain/kyc_policy.py and assert no matches",
+      "Run: cd backend && uv run mypy --strict src/domain/kyc_policy.py and assert exit code 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F038",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "A newly created customer defaults to PENDING_KYC status and CUSTOMER role",
+    "steps": [
+      "Call create_customer with a unique email, password_hash, full_name and date_of_birth",
+      "Assert the returned record has a non-null id",
+      "Assert status == CustomerStatus.PENDING_KYC and role == Role.CUSTOMER",
+      "Re-read the row by id in a new session and assert the same status persists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F039",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "Duplicate customer email insertion raises an integrity error and creates no second row",
+    "steps": [
+      "Create a customer with email 'dup@horizon.test'",
+      "Attempt to create a second customer with the same email inside pytest.raises(IntegrityError)",
+      "Assert the error is raised",
+      "Query the customers table for that email and assert exactly one row exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F040",
+    "category": "security",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "get_by_email returns None for an unknown address instead of raising",
+    "steps": [
+      "Call get_by_email('nobody@horizon.test') against an empty table",
+      "Assert the return value is None and no exception is raised",
+      "Create a customer and call get_by_email with its address",
+      "Assert the returned record id matches the created customer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F041",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "KYC records are created as PENDING and transition to VERIFIED with a timestamp",
+    "steps": [
+      "Create a customer, then create a KYC record for that customer_id",
+      "Assert the record status is KycStatus.PENDING and verified_at is None",
+      "Call mark_verified on the record and re-read it",
+      "Assert status is VERIFIED and verified_at is a non-null datetime"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F042",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "A rejected KYC record stores the stub_reason supplied by the policy",
+    "steps": [
+      "Create a PENDING KYC record and call mark_rejected with stub_reason='RESERVED_TEST_DOCUMENT'",
+      "Re-read the record in a new session",
+      "Assert status is KycStatus.REJECTED and stub_reason == 'RESERVED_TEST_DOCUMENT'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F043",
+    "category": "security",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "Registration stores a KDF hash rather than the plaintext password",
+    "steps": [
+      "Call register with password 'Hunter2!Secure'",
+      "Read the persisted customer row",
+      "Assert password_hash != 'Hunter2!Secure' and len(password_hash) > 40",
+      "Assert the hash prefix identifies bcrypt or argon2 and that verifying 'Hunter2!Secure' against it returns True"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F044",
+    "category": "security",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "Registering an email that already exists raises a duplicate error and creates no second customer",
+    "steps": [
+      "Call register with email 'dup@horizon.test'",
+      "Call register again with the same email inside pytest.raises for the duplicate-email error",
+      "Assert the error is raised",
+      "Assert exactly one customer row exists for that email"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F045",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "A passing KYC submission activates the customer account",
+    "steps": [
+      "Register a customer and assert status is PENDING_KYC",
+      "Call submit_kyc with document_type='PASSPORT' and document_number='P1234567'",
+      "Re-read the customer and assert status == CustomerStatus.ACTIVE",
+      "Assert the linked KYC record status is VERIFIED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F046",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "A rejected KYC submission leaves the customer inactive",
+    "steps": [
+      "Register a customer and call submit_kyc with document_number='X0000000'",
+      "Assert the KYC record status is REJECTED",
+      "Re-read the customer and assert status is still CustomerStatus.PENDING_KYC"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F047",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "A duplicate KYC submission raises KycAlreadySubmittedError and creates no second record",
+    "steps": [
+      "Register a customer and complete a successful KYC submission",
+      "Call submit_kyc again for the same customer inside pytest.raises(KycAlreadySubmittedError)",
+      "Assert the error is raised",
+      "Count kyc_records rows for that customer_id and assert the count is 1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F048",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "Successful login issues a JWT carrying subject, role and a 30-minute expiry",
+    "steps": [
+      "Register and activate a customer, then call login with the correct password",
+      "Decode the returned token with the configured signing key",
+      "Assert the payload 'sub' matches the customer id and 'role' equals 'CUSTOMER'",
+      "Assert exp minus iat equals 1800 seconds"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F049",
+    "category": "security",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "A wrong password raises an authentication error distinct from the not-activated error",
+    "steps": [
+      "Register and activate a customer",
+      "Call login with an incorrect password inside pytest.raises for the authentication error",
+      "Assert the raised error type is the invalid-credentials error, not the not-activated error",
+      "Assert no token is returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F050",
+    "category": "security",
+    "story": "E2-S3",
+    "group": "D",
+    "description": "Login by a PENDING_KYC customer raises a distinct not-activated error",
+    "steps": [
+      "Register a customer without submitting KYC",
+      "Call login with the correct password inside pytest.raises for the not-activated error",
+      "Assert the raised error is distinguishable from the invalid-credentials error by its error_code",
+      "Assert no token is returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F051",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "POST /api/v1/auth/register returns 201 with a customer id and PENDING_KYC status",
+    "steps": [
+      "POST /api/v1/auth/register with a unique email, valid password, full_name and date_of_birth",
+      "Assert the response status is 201",
+      "Assert the JSON body contains a non-null 'id' and 'status' == 'PENDING_KYC'",
+      "Assert the response body contains no 'password' or 'password_hash' field"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F052",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "Registering a duplicate email returns 409",
+    "steps": [
+      "POST /api/v1/auth/register with email 'dup@horizon.test' and assert 201",
+      "POST /api/v1/auth/register again with the same email",
+      "Assert the response status is 409"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F053",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "POST /api/v1/auth/kyc returns 200 and activates the customer on a passing verdict",
+    "steps": [
+      "Register a customer, then POST /api/v1/auth/kyc with document_type='PASSPORT' and document_number='P1234567'",
+      "Assert the response status is 200 and the body status field is 'VERIFIED'",
+      "POST /api/v1/auth/login with that customer's credentials and assert status 200"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F054",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "Malformed KYC input returns 422 and a repeat submission returns 409",
+    "steps": [
+      "POST /api/v1/auth/kyc with document_type='LIBRARY_CARD' and assert the response status is 422",
+      "Complete a valid KYC submission for a second customer and assert 200",
+      "POST /api/v1/auth/kyc again for that same customer and assert the response status is 409"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F055",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "Login returns 200 with a bearer access_token for an activated customer",
+    "steps": [
+      "Register and complete KYC for a customer",
+      "POST /api/v1/auth/login with the correct email and password",
+      "Assert the response status is 200",
+      "Assert the body contains a non-empty 'access_token' and token_type == 'bearer'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F056",
+    "category": "security",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "Login returns 401 for bad credentials and 403 for an unactivated customer, with distinguishable responses",
+    "steps": [
+      "POST /api/v1/auth/login with a correct email but wrong password and assert status 401",
+      "Register a new customer without KYC and POST /api/v1/auth/login with correct credentials",
+      "Assert the response status is 403",
+      "Assert the 403 body carries an error code identifying PENDING_KYC"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F057",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "GET /api/v1/auth/me returns the authenticated principal for a valid token",
+    "steps": [
+      "Obtain an access_token via login",
+      "GET /api/v1/auth/me with header Authorization: Bearer <token>",
+      "Assert the response status is 200",
+      "Assert the body id, email and role match the logged-in customer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F058",
+    "category": "security",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "Missing, malformed and expired bearer tokens all return 401",
+    "steps": [
+      "GET /api/v1/auth/me with no Authorization header and assert status 401",
+      "GET /api/v1/auth/me with header 'Authorization: Bearer not-a-jwt' and assert status 401",
+      "Mint a token with an exp in the past and GET /api/v1/auth/me with it",
+      "Assert the response status is 401"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F059",
+    "category": "security",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "A CUSTOMER-role token calling an admin-guarded route receives 403",
+    "steps": [
+      "Log in as a seeded CUSTOMER and obtain a token",
+      "Call an admin-guarded route with that token",
+      "Assert the response status is 403 and not 401 or 200"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F060",
+    "category": "security",
+    "story": "E2-S4",
+    "group": "E",
+    "description": "No public endpoint permits self-registration with the ADMIN role",
+    "steps": [
+      "POST /api/v1/auth/register with an extra field role='ADMIN'",
+      "Assert the response is 201 or 422 but never creates an admin",
+      "Read the created customer row and assert role == 'CUSTOMER'",
+      "Run: grep -rn \"Role.ADMIN\" backend/src/api/routes/auth.py and assert no assignment of ADMIN occurs in a registration handler"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F061",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "audit_repository.append persists one entry with a server-assigned occurred_at timestamp",
+    "steps": [
+      "Call append with actor_id, actor_role='CUSTOMER', action='TRANSFER_COMPLETED', entity_type='Transfer', entity_id and a correlation_id",
+      "Assert the returned row has a non-null id and a non-null occurred_at",
+      "Query audit_entries and assert exactly one row exists with action == 'TRANSFER_COMPLETED'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F062",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "The audit repository public surface contains no update or delete method",
+    "steps": [
+      "Introspect the AuditRepository class with dir()",
+      "Filter to public callables not starting with an underscore",
+      "Assert no name contains 'update', 'delete', 'remove' or 'purge'",
+      "Run: grep -niE 'def .*(update|delete)' backend/src/repository/audit_repository.py and assert no matches"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F063",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "A raw UPDATE against audit_entries is rejected by a database trigger",
+    "steps": [
+      "Append one audit entry and record its action value",
+      "Execute raw SQL: UPDATE audit_entries SET action='tampered' inside pytest.raises for a database error",
+      "Assert the error is raised",
+      "Re-read the row and assert its action still holds the original value"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F064",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "A raw DELETE against audit_entries is rejected by a database trigger",
+    "steps": [
+      "Append two audit entries and assert the row count is 2",
+      "Execute raw SQL: DELETE FROM audit_entries inside pytest.raises for a database error",
+      "Assert the error is raised",
+      "Re-count audit_entries and assert the count is still 2"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F065",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "Audit queries filter by entity_type and return most-recent-first ordering",
+    "steps": [
+      "Append three entries with entity_type values 'Transfer', 'LoanApplication' and 'Transfer'",
+      "Query with entity_type='Transfer' and assert exactly 2 rows are returned",
+      "Assert the returned rows are ordered with the newest occurred_at first"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F066",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "Audit queries filter by actor_id and by an occurred_at date range",
+    "steps": [
+      "Append entries for two distinct actor_id values",
+      "Query filtered by the first actor_id and assert only that actor's entries are returned",
+      "Query with a date range that excludes all entries and assert an empty list is returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F067",
+    "category": "integration",
+    "story": "E3-S1",
+    "group": "C",
+    "description": "A failed audit append rolls back the enclosing business transaction",
+    "steps": [
+      "Open a transaction, write a business row, then force the audit append to raise",
+      "Allow the exception to propagate out of the transaction scope",
+      "Open a new session and assert the business row was not committed",
+      "Assert the audit_entries table contains no partial entry for the operation"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F068",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "A created savings account starts at exactly Decimal 0.00 with ACTIVE status",
+    "steps": [
+      "Call create_account for an existing customer_id",
+      "Assert the returned account balance == Decimal('0.00') and its type is SAVINGS",
+      "Assert status == AccountStatus.ACTIVE and account_number is a non-empty string",
+      "Re-read the row in a new session and assert the balance is still Decimal('0.00')"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F069",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "Generated account numbers are unique across accounts",
+    "steps": [
+      "Create three accounts for the same customer",
+      "Collect the three account_number values",
+      "Assert all three are distinct",
+      "Attempt to insert a duplicate account_number directly and assert an integrity error is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F070",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "get_for_update re-reads the current committed balance inside the transaction",
+    "steps": [
+      "Create an account and set its balance to Decimal('100.00')",
+      "In transaction one, debit 40.00 and commit",
+      "In a new transaction, call get_for_update on the same account id",
+      "Assert the returned balance is Decimal('60.00')"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F071",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "A single transfer id yields exactly one DEBIT and one CREDIT transaction row",
+    "steps": [
+      "Record a DEBIT row and a CREDIT row sharing transfer_id T1",
+      "Query transactions filtered by transfer_id == T1",
+      "Assert exactly 2 rows are returned",
+      "Assert one row has direction DEBIT and the other CREDIT, and their amounts are equal"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F072",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "Each transaction row stores the resulting balance_after as a Decimal",
+    "steps": [
+      "Record a DEBIT of 25.00 against an account whose balance becomes 75.00",
+      "Read the transaction row back",
+      "Assert balance_after == Decimal('75.00') and isinstance(balance_after, Decimal)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F073",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "Statement listing paginates most-recent-first with a correct total count",
+    "steps": [
+      "Record 25 transactions against one account with increasing created_at values",
+      "Call list_statements with page=1 and page_size=20",
+      "Assert 20 items are returned, the total count is 25, and the first item is the newest",
+      "Call with page=2 and assert exactly 5 items are returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F074",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "An account with no transactions returns an empty page rather than raising",
+    "steps": [
+      "Create an account and record no transactions",
+      "Call list_statements with page=1",
+      "Assert the returned item list is empty and total is 0",
+      "Assert no exception is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F075",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "D",
+    "description": "Opening an account creates a zero-balance savings account and one matching audit entry",
+    "steps": [
+      "Call open_account for an authenticated customer principal",
+      "Assert the returned account balance == Decimal('0.00')",
+      "Query audit_entries for entity_type='Account' and entity_id equal to the new account id",
+      "Assert exactly one entry exists with action == 'ACCOUNT_OPENED' and actor_id equal to the customer id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F076",
+    "category": "security",
+    "story": "E3-S3",
+    "group": "D",
+    "description": "Account listing is scoped to the calling principal only",
+    "steps": [
+      "Create customer A with two accounts and customer B with one account",
+      "Call list_accounts for principal A",
+      "Assert exactly 2 accounts are returned and every id belongs to A",
+      "Assert customer B's account id does not appear in the result"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F077",
+    "category": "security",
+    "story": "E3-S3",
+    "group": "D",
+    "description": "Requesting another customer's statements raises an ownership error",
+    "steps": [
+      "Create customer A with an account and customer B",
+      "Call get_statements with principal B and customer A's account_id inside pytest.raises(OwnershipError)",
+      "Assert the error is raised",
+      "Assert no statement rows are returned to B"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F078",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "D",
+    "description": "The account service returns Decimal balances and contains no float usage",
+    "steps": [
+      "Call list_accounts and inspect the balance on each returned account",
+      "Assert isinstance(balance, Decimal) for every account",
+      "Run: grep -nE 'float\\(|:\\s*float' backend/src/service/account_service.py",
+      "Assert the command exits with status 1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F079",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "D",
+    "description": "Statement page size is read from configuration and applied to service results",
+    "steps": [
+      "Record 30 transactions on an owned account",
+      "Call get_statements with no explicit page size and assert 20 items are returned",
+      "Override statement_page_size to 5 in configuration and repeat the call",
+      "Assert exactly 5 items are returned, proving the value is configuration-driven"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F080",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "POST /api/v1/accounts returns 201 with a zero balance rendered as the string 0.00",
+    "steps": [
+      "Authenticate as a customer and POST /api/v1/accounts",
+      "Assert the response status is 201",
+      "Assert the raw response text contains '\"balance\":\"0.00\"' or '\"balance\": \"0.00\"'",
+      "Assert json.loads gives balance as a str instance, not a float"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F081",
+    "category": "security",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "POST /api/v1/accounts without a bearer token returns 401",
+    "steps": [
+      "POST /api/v1/accounts with no Authorization header",
+      "Assert the response status is 401",
+      "Assert no account row was created in the database"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F082",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "GET /api/v1/accounts returns 200 listing only the caller's own accounts",
+    "steps": [
+      "Create two accounts as customer A and one as customer B",
+      "GET /api/v1/accounts authenticated as A",
+      "Assert the response status is 200 and the array length is 2",
+      "Assert no returned account id belongs to customer B"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F083",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "The statements endpoint returns a paginated envelope with items, page, page_size and total",
+    "steps": [
+      "Seed 25 transactions on an owned account",
+      "GET /api/v1/accounts/{id}/statements?page=1",
+      "Assert the response status is 200 and the body has keys items, page, page_size and total",
+      "Assert len(items) == 20 and total == 25"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F084",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "An account with no transactions returns 200 with an empty items array rather than 404",
+    "steps": [
+      "Create a fresh account with no transactions",
+      "GET /api/v1/accounts/{id}/statements",
+      "Assert the response status is 200 and not 404",
+      "Assert items is an empty array and total is 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F085",
+    "category": "security",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "Cross-customer statement access returns 403",
+    "steps": [
+      "Create an account as customer A and authenticate as customer B",
+      "GET /api/v1/accounts/{A_account_id}/statements as B",
+      "Assert the response status is exactly 403",
+      "Assert the response body contains no transaction data"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F086",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "Zero and negative transfer amounts are rejected by the policy",
+    "steps": [
+      "Evaluate the transfer policy with amount=Decimal('0.00') and assert a DomainError subclass is raised",
+      "Evaluate with amount=Decimal('-5.00') and assert a DomainError subclass is raised",
+      "Assert neither call returns an allow decision"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F087",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "An amount with more than two decimal places is rejected rather than silently rounded",
+    "steps": [
+      "Evaluate the transfer policy with amount=Decimal('10.001')",
+      "Assert a MoneyPrecisionError or DomainError subclass is raised",
+      "Assert the policy does not return an allow decision carrying a rounded 10.00 amount"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F088",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "A self-transfer is rejected with an error code distinct from insufficient funds",
+    "steps": [
+      "Evaluate the policy with source_account_id equal to destination_account_id",
+      "Assert a DomainError subclass identifying a self-transfer is raised",
+      "Assert the error_code is distinct from 'INSUFFICIENT_FUNDS'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F089",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "A closed or non-existent destination account is rejected",
+    "steps": [
+      "Evaluate the policy with a destination account whose status is AccountStatus.CLOSED and assert a DomainError subclass is raised",
+      "Evaluate the policy with a destination account that does not exist and assert a DomainError subclass is raised",
+      "Evaluate the same case with an existing ACTIVE destination and assert no error is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F090",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "An amount above the balance raises InsufficientFundsException",
+    "steps": [
+      "Evaluate the policy with balance=Decimal('100.00') and amount=Decimal('100.01')",
+      "Assert InsufficientFundsException is raised",
+      "Assert the exception error_code equals 'INSUFFICIENT_FUNDS'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F091",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "A transfer of exactly the full available balance is permitted with no minimum-balance floor",
+    "steps": [
+      "Evaluate the policy with balance=Decimal('100.00') and amount=Decimal('100.00')",
+      "Assert no exception is raised and the policy returns an allow decision",
+      "Assert no minimum-balance rule blocks draining the account to 0.00"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F092",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "A transfer to a valid active non-beneficiary account is permitted by the policy",
+    "steps": [
+      "Evaluate the policy with a valid ACTIVE destination account that the sender has not saved as a beneficiary",
+      "Assert no exception is raised",
+      "Assert the policy returns an allow decision"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F093",
+    "category": "integration",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "The transfer policy module contains no beneficiary check",
+    "steps": [
+      "Run: grep -niE 'beneficiar' backend/src/domain/transfer_policy.py",
+      "Assert the command exits with status 1 (no matches)",
+      "Inspect the policy function signature and assert it accepts no beneficiary parameter"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F094",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "A large transfer within balance is permitted with no cap applied",
+    "steps": [
+      "Evaluate the policy with balance=Decimal('1000000.00') and amount=Decimal('999999.99')",
+      "Assert no exception is raised and the policy returns an allow decision",
+      "Assert no cap-exceeded error type exists in the raised-error surface"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F095",
+    "category": "integration",
+    "story": "E4-S1",
+    "group": "C",
+    "description": "No cap, limit or velocity threshold appears in the transfer policy module",
+    "steps": [
+      "Run: grep -niE 'cap|daily|velocity|limit' backend/src/domain/transfer_policy.py",
+      "Assert the command exits with status 1 (no matches)",
+      "Inspect the policy function signature and assert it accepts no daily_cap or limit parameter"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F096",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "D",
+    "description": "Adding a beneficiary persists the record and writes a matching audit entry",
+    "steps": [
+      "Call add_beneficiary as customer A with nickname='Mum' and a valid destination account_number",
+      "Assert the returned record has a non-null id and deleted_at is None",
+      "Query audit_entries for entity_type='Beneficiary' and the new id",
+      "Assert exactly one entry exists with action == 'BENEFICIARY_ADDED' and actor_id equal to customer A"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F097",
+    "category": "security",
+    "story": "E4-S2",
+    "group": "D",
+    "description": "Beneficiary listing is scoped to the owning customer",
+    "steps": [
+      "Add one beneficiary as customer A and one as customer B",
+      "Call list_beneficiaries as B",
+      "Assert exactly one record is returned and it is B's",
+      "Assert A's beneficiary id does not appear in B's result"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F098",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "D",
+    "description": "Removing a beneficiary sets deleted_at and hides it from listings without deleting the row",
+    "steps": [
+      "Add a beneficiary as customer A and call remove_beneficiary on it",
+      "Call list_beneficiaries for A and assert the removed beneficiary is absent",
+      "Query the beneficiaries table directly by id and assert the row still exists",
+      "Assert its deleted_at is a non-null datetime"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F099",
+    "category": "integration",
+    "story": "E4-S2",
+    "group": "D",
+    "description": "A soft-deleted beneficiary leaves earlier audit and transfer records intact",
+    "steps": [
+      "Add a beneficiary, complete a transfer to that account, then remove the beneficiary",
+      "Query the transfers table for the completed transfer and assert the row is still readable",
+      "Assert the audit entry for BENEFICIARY_ADDED is still present and unmodified"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F100",
+    "category": "security",
+    "story": "E4-S2",
+    "group": "D",
+    "description": "Removing another customer's beneficiary raises an ownership error",
+    "steps": [
+      "Add a beneficiary as customer A",
+      "Call remove_beneficiary as customer B with A's beneficiary id inside pytest.raises(OwnershipError)",
+      "Assert the error is raised",
+      "Re-read A's beneficiary and assert deleted_at is still None"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F101",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "D",
+    "description": "A duplicate active beneficiary account number for the same customer is rejected",
+    "steps": [
+      "Add a beneficiary with account_number 'ACC-1001' as customer A",
+      "Add the same account_number again as customer A inside pytest.raises for the duplicate error",
+      "Assert the error is raised",
+      "Assert exactly one active beneficiary row exists for that account number and customer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F102",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "C",
+    "description": "Enqueued notifications are written as QUEUED within the caller's transaction",
+    "steps": [
+      "Inside a transaction, call enqueue with channel='EMAIL' and event_type='TRANSFER_COMPLETED', then commit",
+      "Query the notifications table for that customer",
+      "Assert one row exists with status == NotificationStatus.QUEUED and sent_at is None"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F103",
+    "category": "integration",
+    "story": "E4-S3",
+    "group": "C",
+    "description": "A rolled-back transaction leaves no orphan notification row",
+    "steps": [
+      "Open a transaction, call enqueue, then raise an exception before commit",
+      "Catch the exception outside the transaction scope",
+      "Query the notifications table in a new session and assert zero rows exist"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F104",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "C",
+    "description": "Dispatch transitions a notification to SENT with a timestamp",
+    "steps": [
+      "Enqueue a notification and commit, then call dispatch on it",
+      "Re-read the row and assert status == NotificationStatus.SENT",
+      "Assert sent_at is a non-null datetime"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F105",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "C",
+    "description": "Dispatch emits a structured JSON log line naming the event type",
+    "steps": [
+      "Capture log output while dispatching a notification with event_type='TRANSFER_COMPLETED'",
+      "Parse the captured lines as JSON",
+      "Assert at least one record contains event_type == 'TRANSFER_COMPLETED'",
+      "Assert the record also carries a correlation_id key"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F106",
+    "category": "integration",
+    "story": "E4-S3",
+    "group": "C",
+    "description": "A failing dispatcher marks the notification FAILED without rolling back committed business state",
+    "steps": [
+      "Complete and commit a transfer that enqueues a notification",
+      "Force the stub dispatcher to raise, then run dispatch",
+      "Assert no exception propagates to the caller",
+      "Assert the notification status is FAILED and both account balances are unchanged from their committed values"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F107",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "C",
+    "description": "The stub dispatcher serves both EMAIL and SMS channels with distinguishable rows",
+    "steps": [
+      "Enqueue one notification with channel='EMAIL' and one with channel='SMS' for the same customer",
+      "Dispatch both and assert each reaches status SENT",
+      "Assert querying by channel returns exactly one row for each value"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F108",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "A successful transfer debits the source and credits the destination by the exact amount",
+    "steps": [
+      "Fund account A with 1000.00 and account B with 0.00",
+      "Execute a transfer of Decimal('250.00') from A to B",
+      "Assert A's balance is exactly Decimal('750.00') and B's balance is exactly Decimal('250.00')",
+      "Assert the sum of both balances equals the pre-transfer sum of 1000.00"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F109",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "A successful transfer writes exactly one DEBIT and one CREDIT transaction sharing a transfer_id",
+    "steps": [
+      "Execute a successful transfer and capture the returned transfer id",
+      "Query transactions filtered by that transfer_id",
+      "Assert exactly 2 rows exist, one DEBIT on the source and one CREDIT on the destination",
+      "Assert both rows carry the same amount and correct balance_after values"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F110",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "A transfer to a non-beneficiary active account completes successfully",
+    "steps": [
+      "Fund account A and create account B owned by a different customer, with no beneficiary saved by A",
+      "Execute a transfer of Decimal('50.00') from A to B",
+      "Assert the transfer status is COMPLETED and no error is raised",
+      "Assert B's balance increased by exactly 50.00"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F111",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "An insufficient-funds transfer raises InsufficientFundsException and moves zero money",
+    "steps": [
+      "Fund account A with 100.00",
+      "Attempt a transfer of Decimal('500.00') inside pytest.raises(InsufficientFundsException)",
+      "Assert the exception is raised",
+      "Re-read both accounts in a new session and assert A is still 100.00 and the destination is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F112",
+    "category": "integration",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "A failed transfer writes no transaction rows and enqueues no notification",
+    "steps": [
+      "Attempt a transfer that fails on insufficient funds",
+      "Query the transactions table for rows referencing either account after the attempt",
+      "Assert no new DEBIT or CREDIT row was created",
+      "Assert the notifications table has no new row for that customer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F113",
+    "category": "functional",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "A failed transfer is still recorded as a FAILED transfer row with a failure_code and audited",
+    "steps": [
+      "Attempt a transfer that fails on insufficient funds",
+      "Query the transfers table for the attempt",
+      "Assert one row exists with status == TransferStatus.FAILED and failure_code == 'INSUFFICIENT_FUNDS'",
+      "Assert an audit entry exists recording the failed attempt per DR-22"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F114",
+    "category": "integration",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "A committed transfer produces exactly one audit entry and one queued notification atomically",
+    "steps": [
+      "Execute one successful transfer",
+      "Query audit_entries for entity_type='Transfer' and assert exactly one row with action == 'TRANSFER_COMPLETED'",
+      "Query notifications for the sender and assert exactly one new row with event_type == 'TRANSFER_COMPLETED'",
+      "Assert both rows carry the same correlation_id as the transfer request"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F115",
+    "category": "integration",
+    "story": "E4-S4",
+    "group": "E",
+    "description": "Concurrent double-spend attempts serialise so exactly one succeeds and the balance never goes negative",
+    "steps": [
+      "Fund account A with exactly 100.00",
+      "Launch two concurrent transfers of 80.00 each from A using threads",
+      "Assert exactly one call returns successfully and exactly one raises InsufficientFundsException",
+      "Re-read A's balance and assert it equals Decimal('20.00') and is not negative"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F116",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "Beneficiary create, list and delete return 201, 200 and 204 respectively",
+    "steps": [
+      "POST /api/v1/beneficiaries with a valid nickname and account number and assert status 201 with a non-null id",
+      "GET /api/v1/beneficiaries and assert status 200 with the new beneficiary present",
+      "DELETE /api/v1/beneficiaries/{id} and assert status 204",
+      "GET /api/v1/beneficiaries again and assert the deleted beneficiary is absent"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F117",
+    "category": "security",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "Deleting another customer's beneficiary returns 403 and leaves it active",
+    "steps": [
+      "Create a beneficiary as customer A",
+      "Authenticate as customer B and DELETE /api/v1/beneficiaries/{A_beneficiary_id}",
+      "Assert the response status is 403",
+      "GET /api/v1/beneficiaries as A and assert the beneficiary is still listed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F118",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "A successful transfer POST returns 201 with COMPLETED status and a string amount",
+    "steps": [
+      "Fund an account and POST /api/v1/transfers with amount '250.00' to a valid active destination",
+      "Assert the response status is 201",
+      "Assert the body status == 'COMPLETED' and id is non-null",
+      "Assert json.loads gives the amount field as a str instance equal to '250.00', not a float"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F119",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "A transfer to a valid active account not saved as a beneficiary returns 201",
+    "steps": [
+      "Fund account A and identify an active account B that A has not saved as a beneficiary",
+      "POST /api/v1/transfers from A to B's account number",
+      "Assert the response status is 201 and not 403",
+      "Assert the body status is 'COMPLETED'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F120",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "An over-balance transfer returns 422 with the INSUFFICIENT_FUNDS error code",
+    "steps": [
+      "Fund an account with 100.00 and POST /api/v1/transfers with amount '500.00'",
+      "Assert the response status is 422",
+      "Assert the body error code equals 'INSUFFICIENT_FUNDS'",
+      "GET /api/v1/accounts and assert the balance is still the string '100.00'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F121",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "Non-existent and closed destination accounts return 404 and 422 respectively",
+    "steps": [
+      "POST /api/v1/transfers to an account number that does not exist and assert the response status is 404",
+      "POST /api/v1/transfers to an account whose status is CLOSED and assert the response status is 422",
+      "Assert the source balance is unchanged after both attempts"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F122",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "Self-transfer and over-precision amounts return 422 with no state change",
+    "steps": [
+      "POST /api/v1/transfers where source and destination are the caller's same account and assert status 422",
+      "POST /api/v1/transfers with amount '10.001' and assert status 422",
+      "Assert no transfer with amount 10.00 was created",
+      "Assert the source balance is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F123",
+    "category": "functional",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "Transfer history returns the caller's completed and failed attempts",
+    "steps": [
+      "Execute one successful transfer and one insufficient-funds attempt as customer A",
+      "GET /api/v1/transfers as A and assert status 200",
+      "Assert the response includes one entry with status COMPLETED and one with status FAILED",
+      "Assert no transfer belonging to another customer appears"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F124",
+    "category": "security",
+    "story": "E4-S5",
+    "group": "F",
+    "description": "GET /api/v1/transfers without a bearer token returns 401",
+    "steps": [
+      "GET /api/v1/transfers with no Authorization header",
+      "Assert the response status is 401",
+      "Assert the response body contains no transfer data"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F125",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "The four legal loan transitions are permitted by the state matrix",
+    "steps": [
+      "Assert assert_transition(APPLIED, UNDER_REVIEW) does not raise",
+      "Assert assert_transition(UNDER_REVIEW, APPROVED) does not raise",
+      "Assert assert_transition(UNDER_REVIEW, REJECTED) does not raise",
+      "Assert assert_transition(APPROVED, DISBURSED) does not raise"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F126",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Every transition outside the legal matrix raises IllegalLoanTransitionError",
+    "steps": [
+      "Assert assert_transition(APPLIED, DISBURSED) raises IllegalLoanTransitionError per edge case E-11",
+      "Assert assert_transition(REJECTED, APPROVED) raises IllegalLoanTransitionError per edge case E-12",
+      "Assert assert_transition(DISBURSED, UNDER_REVIEW) raises IllegalLoanTransitionError",
+      "Enumerate all ordered pairs of LoanStatus and assert exactly 4 do not raise"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F127",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Empty and whitespace-only decision reasons are rejected",
+    "steps": [
+      "Call assert_decision_reason('') and assert a DomainError subclass is raised",
+      "Call assert_decision_reason('   ') and assert a DomainError subclass is raised",
+      "Call assert_decision_reason('Income insufficient for requested tenure') and assert no error is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F128",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Non-positive and over-precision loan principals are rejected as structurally invalid",
+    "steps": [
+      "Call the application validator with principal=Decimal('0.00') and assert a DomainError subclass is raised",
+      "Call with principal=Decimal('-100.00') and assert a DomainError subclass is raised",
+      "Call with principal=Decimal('1000.001') and assert a DomainError subclass is raised",
+      "Call with principal=Decimal('1000.00') and a valid tenure and assert no error is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F129",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Zero and fractional loan tenures are rejected as structurally invalid",
+    "steps": [
+      "Call the application validator with tenure_months=0 and assert a DomainError subclass is raised",
+      "Call with tenure_months=-6 and assert a DomainError subclass is raised",
+      "Call with tenure_months=12 and assert no error is raised"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F130",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "A large principal with no declared income passes structural validation",
+    "steps": [
+      "Call the application validator with principal=Decimal('99999999.00'), tenure_months=360 and declared_monthly_income=None",
+      "Assert no exception is raised",
+      "Assert the validator returns a valid result rather than an ineligible decision"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F131",
+    "category": "integration",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "No eligibility threshold or EMI ratio appears in the loan policy module",
+    "steps": [
+      "Run: grep -niE 'income|ratio|emi|min_principal|max_principal|min_tenure|max_tenure|eligib' backend/src/domain/loan_eligibility_policy.py",
+      "Assert the command exits with status 1 (no matches)",
+      "Inspect the validator signature and assert it accepts no threshold or bound parameters"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F132",
+    "category": "integration",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "The loan policy module is dependency-free and typechecks strictly",
+    "steps": [
+      "Run: grep -nE '^(from|import) ' backend/src/domain/loan_eligibility_policy.py",
+      "Assert every import references only decimal, typing, dataclasses, enum or src.types",
+      "Run: cd backend && uv run mypy --strict src/domain/loan_eligibility_policy.py and assert exit code 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F133",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "A created loan application starts in APPLIED status with Decimal principal preserved",
+    "steps": [
+      "Call create_application with principal=Decimal('5000.00') and tenure_months=24 for an existing customer",
+      "Assert the returned record has a non-null id and status == LoanStatus.APPLIED",
+      "Re-read the row in a new session and assert principal == Decimal('5000.00') and isinstance(principal, Decimal)",
+      "Assert tenure_months == 24"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F134",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Appending a loan transition writes one row recording actor, reason and timestamp",
+    "steps": [
+      "Append a transition from APPLIED to UNDER_REVIEW with an admin actor_id and reason",
+      "Query loan_state_transitions for that loan_id and assert exactly one row exists",
+      "Assert the row records from_status, to_status, actor_id, reason and a non-null created_at"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F135",
+    "category": "security",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "The loan transition history exposes no update or delete path",
+    "steps": [
+      "Introspect the loan repository public methods",
+      "Assert no method name related to transitions contains 'update', 'delete' or 'remove'",
+      "Run: grep -niE 'def .*(update|delete).*transition' backend/src/repository/loan_repository.py and assert no matches"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F136",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Transition history is returned in chronological order",
+    "steps": [
+      "Append transitions APPLIED\u2192UNDER_REVIEW then UNDER_REVIEW\u2192APPROVED for one loan",
+      "Call list_transitions for that loan id",
+      "Assert exactly 2 transition rows are returned",
+      "Assert the first row's to_status is UNDER_REVIEW and the second's is APPROVED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F137",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Loans can be filtered by status for the admin queue",
+    "steps": [
+      "Create three loans and move one to UNDER_REVIEW",
+      "Call list_by_status(LoanStatus.APPLIED) and assert exactly 2 rows are returned",
+      "Call list_by_status(LoanStatus.UNDER_REVIEW) and assert exactly 1 row is returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F138",
+    "category": "security",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Customer loan listing is scoped to the owning customer",
+    "steps": [
+      "Create one loan for customer A and one for customer B",
+      "Call list_for_customer with A's id",
+      "Assert exactly one loan is returned and it belongs to A",
+      "Assert B's loan id is absent from the result"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F139",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Applying for a loan creates an APPLIED record with an audit entry and a notification",
+    "steps": [
+      "Call apply_for_loan as customer A with a structurally valid principal and tenure",
+      "Assert the returned loan status is LoanStatus.APPLIED",
+      "Query audit_entries for entity_type='LoanApplication' and assert one entry with action == 'LOAN_APPLIED'",
+      "Query notifications for A and assert one new row exists for the application event"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F140",
+    "category": "integration",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Each loan state transition produces exactly one notification with no gaps",
+    "steps": [
+      "Apply for a loan, then move it to UNDER_REVIEW, APPROVED and DISBURSED in sequence",
+      "Query the notifications table for that customer filtered to loan events",
+      "Assert exactly 4 notification rows exist",
+      "Assert their event_type values cover the application and each of the three transitions"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F141",
+    "category": "integration",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Each loan state transition appends a matching audit entry",
+    "steps": [
+      "Take a loan through APPLIED, UNDER_REVIEW, APPROVED and DISBURSED",
+      "Query audit_entries for entity_type='LoanApplication' and that loan id",
+      "Assert exactly 4 entries exist, one per event",
+      "Assert each entry records the acting actor_id and the correlation_id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F142",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Approving with an empty reason raises and writes no transition",
+    "steps": [
+      "Move a loan to UNDER_REVIEW, then call approve with reason='' inside pytest.raises",
+      "Assert a DomainError subclass is raised",
+      "Assert the loan status is still UNDER_REVIEW",
+      "Assert no new loan_state_transitions row was appended"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F143",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Rejecting with a whitespace-only reason raises and writes no audit entry or notification",
+    "steps": [
+      "Move a loan to UNDER_REVIEW, then call reject with reason='   ' inside pytest.raises",
+      "Assert the error is raised and the loan status is unchanged",
+      "Assert the audit entry count for that loan is unchanged",
+      "Assert the notification count for that customer is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F144",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Approving a loan that is not UNDER_REVIEW raises IllegalLoanTransitionError",
+    "steps": [
+      "Create a loan in APPLIED status and call approve with a valid reason inside pytest.raises(IllegalLoanTransitionError)",
+      "Assert the error is raised",
+      "Re-read the loan and assert status is still APPLIED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F145",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Approving an already-rejected loan raises and leaves it REJECTED",
+    "steps": [
+      "Take a loan to REJECTED with a valid reason",
+      "Call approve on it inside pytest.raises(IllegalLoanTransitionError)",
+      "Assert the error is raised and the loan status is still REJECTED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F146",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Disbursement credits the applicant's active savings account by the loan principal",
+    "steps": [
+      "Take a loan of principal 5000.00 to APPROVED for a customer whose savings account holds 100.00",
+      "Call disburse targeting that account",
+      "Assert the loan status becomes DISBURSED",
+      "Assert the account balance is exactly Decimal('5100.00')"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F147",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Disbursement to a closed account raises and moves no money",
+    "steps": [
+      "Take a loan to APPROVED and close the applicant's target account",
+      "Call disburse inside pytest.raises for a domain error",
+      "Assert the error is raised and the loan status is still APPROVED",
+      "Assert the account balance is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F148",
+    "category": "security",
+    "story": "E5-S3",
+    "group": "E",
+    "description": "Disbursement rejects an account that does not belong to the applicant",
+    "steps": [
+      "Take customer A's loan to APPROVED",
+      "Call disburse targeting an account owned by customer B inside pytest.raises",
+      "Assert the error is raised",
+      "Assert B's balance is unchanged and the loan status is still APPROVED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F149",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "POST /api/v1/loans returns 201 with APPLIED status and a string principal",
+    "steps": [
+      "Authenticate as a customer and POST /api/v1/loans with principal '5000.00' and tenure_months 24",
+      "Assert the response status is 201",
+      "Assert the body status == 'APPLIED' and id is non-null",
+      "Assert the principal field is the JSON string '5000.00'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F150",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "GET /api/v1/loans/{id} returns the loan with its full ordered transition timeline",
+    "steps": [
+      "Take a loan through APPLIED, UNDER_REVIEW and APPROVED",
+      "GET /api/v1/loans/{id} as the owning customer and assert status 200",
+      "Assert the body contains a timeline array with 2 transition entries in chronological order",
+      "Assert each entry carries to_status, reason and a timestamp"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F151",
+    "category": "security",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "Requesting another customer's loan returns 403",
+    "steps": [
+      "Create a loan as customer A",
+      "GET /api/v1/loans/{id} authenticated as customer B",
+      "Assert the response status is 403",
+      "Assert the body contains no loan data"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F152",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "The admin loan queue returns 200 and supports status filtering",
+    "steps": [
+      "Seed loans in APPLIED and UNDER_REVIEW states and authenticate as the seeded admin",
+      "GET /api/v1/admin/loans?status=APPLIED and assert status 200",
+      "Assert every returned loan has status APPLIED",
+      "GET /api/v1/admin/loans with no filter and assert loans in both states are returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F153",
+    "category": "security",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "A customer token calling the admin loan queue receives 403",
+    "steps": [
+      "Authenticate as a CUSTOMER and GET /api/v1/admin/loans",
+      "Assert the response status is 403",
+      "Assert the response body contains no loan queue data"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F154",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "Approve and reject return 200 with the new status when a reason is supplied",
+    "steps": [
+      "Move a loan to UNDER_REVIEW as admin, then POST /api/v1/admin/loans/{id}/approve with reason 'Verified documents'",
+      "Assert the response status is 200 and the body status == 'APPROVED'",
+      "On a second UNDER_REVIEW loan POST /reject with reason 'Insufficient documentation'",
+      "Assert the response status is 200 and the body status == 'REJECTED'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F155",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "Approve or reject without a reason returns 422 and does not change the loan status",
+    "steps": [
+      "Move a loan to UNDER_REVIEW, then POST /approve with an empty reason and assert status 422",
+      "POST /approve with the reason field omitted entirely and assert status 422",
+      "GET the loan and assert its status is still UNDER_REVIEW"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F156",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "The review action moves an APPLIED loan to UNDER_REVIEW with 200",
+    "steps": [
+      "Create an APPLIED loan and POST /api/v1/admin/loans/{id}/review as admin",
+      "Assert the response status is 200",
+      "Assert the body status == 'UNDER_REVIEW'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F157",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "An illegal loan transition returns 409",
+    "steps": [
+      "Create an APPLIED loan and POST /api/v1/admin/loans/{id}/approve with a valid reason",
+      "Assert the response status is 409",
+      "Take another loan to REJECTED and POST /approve on it, asserting status 409",
+      "Assert both loans retain their prior status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F158",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "Disbursing an approved loan returns 200 and credits the applicant's account",
+    "steps": [
+      "Take a loan of principal '5000.00' to APPROVED for a customer whose account holds 100.00",
+      "POST /api/v1/admin/loans/{id}/disburse as admin and assert status 200",
+      "Assert the body status == 'DISBURSED'",
+      "GET /api/v1/accounts as the customer and assert the balance is the string '5100.00'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F159",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "F",
+    "description": "Disbursing a loan that is not APPROVED returns 409",
+    "steps": [
+      "Create a loan in APPLIED status and POST /api/v1/admin/loans/{id}/disburse as admin",
+      "Assert the response status is 409",
+      "Assert the loan status is still APPLIED and no account was credited"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F160",
+    "category": "functional",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "The admin audit endpoint returns entries for both transfers and loan transitions",
+    "steps": [
+      "Execute one transfer and take one loan through a state transition",
+      "GET /api/v1/admin/audit as the seeded admin and assert status 200",
+      "Assert the result contains at least one entry with entity_type 'Transfer' and one with 'LoanApplication'",
+      "Assert every entry carries occurred_at, actor_id, action, entity_type, entity_id and correlation_id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F161",
+    "category": "functional",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "Audit filtering by entity_type and actor returns only matching entries",
+    "steps": [
+      "Generate audit entries across two entity types and two actors",
+      "GET /api/v1/admin/audit?entity_type=Transfer and assert every returned entry has entity_type 'Transfer'",
+      "GET /api/v1/admin/audit filtered by one actor_id and assert every entry matches that actor",
+      "Assert results are ordered with the most recent occurred_at first"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F162",
+    "category": "functional",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "A date range excluding all entries returns 200 with an empty result",
+    "steps": [
+      "GET /api/v1/admin/audit with a from/to date range entirely in the past",
+      "Assert the response status is 200",
+      "Assert the returned entry array is empty rather than a 404"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F163",
+    "category": "security",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "Customer and anonymous callers cannot read the admin audit ledger",
+    "steps": [
+      "GET /api/v1/admin/audit authenticated as a CUSTOMER and assert status 403",
+      "GET /api/v1/admin/audit with no Authorization header and assert status 401",
+      "Assert neither response body contains audit entries"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F164",
+    "category": "security",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "Customer and anonymous callers cannot read the admin notification log",
+    "steps": [
+      "GET /api/v1/admin/notifications authenticated as a CUSTOMER and assert status 403",
+      "GET /api/v1/admin/notifications with no Authorization header and assert status 401"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F165",
+    "category": "functional",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "The admin notification log lists transfer and loan notifications with channel and status",
+    "steps": [
+      "Execute a successful transfer and take a loan through one state transition",
+      "GET /api/v1/admin/notifications as admin and assert status 200",
+      "Assert at least one entry has event_type 'TRANSFER_COMPLETED' and one relates to a loan transition",
+      "Assert every entry carries channel, event_type and status fields"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F166",
+    "category": "security",
+    "story": "E5-S5",
+    "group": "F",
+    "description": "The audit endpoint exposes no write verb",
+    "steps": [
+      "Send POST, PUT, PATCH and DELETE to /api/v1/admin/audit as an authenticated admin",
+      "Assert every response status is 405 Method Not Allowed",
+      "Assert the audit_entries row count is unchanged after all four attempts"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F167",
+    "category": "integration",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "API types are generated from the OpenAPI schema and regeneration is idempotent",
+    "steps": [
+      "Start the backend and run the frontend type generation command",
+      "Assert the command exits with status 0 and writes a generated types file",
+      "Run the generation command a second time",
+      "Assert git reports no diff on the generated file"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F168",
+    "category": "ui",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "Design tokens are centralised and screens contain no raw hex colour literals",
+    "steps": [
+      "Assert the design token module exports named colour, type scale and spacing tokens",
+      "Run: grep -rnE '#[0-9a-fA-F]{3,8}' frontend/src --include=*.tsx",
+      "Assert the command returns no matches outside the design token module"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F169",
+    "category": "ui",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "Money text meets WCAG AA contrast against its background in the token palette",
+    "steps": [
+      "Compute the contrast ratio between the money text token and the surface token it renders on",
+      "Assert the ratio is at least 4.5:1",
+      "Repeat for the error state token used by the insufficient-funds message and assert at least 4.5:1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F170",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "formatMoney renders decimal strings with exactly two decimal places",
+    "steps": [
+      "Call formatMoney('1234.5') and assert the result is '1,234.50'",
+      "Call formatMoney('0') and assert the result is '0.00'",
+      "Call formatMoney('999999.99') and assert the result is '999,999.99'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F171",
+    "category": "security",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "No money value is coerced to a JavaScript number anywhere in the frontend",
+    "steps": [
+      "Run: grep -rnE 'parseFloat|Number\\(' frontend/src --include=*.ts --include=*.tsx",
+      "Assert no match is applied to a balance, amount or principal field",
+      "Assert formatMoney accepts a string parameter and never returns a number type"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F172",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "The API client attaches the bearer token to authenticated requests",
+    "steps": [
+      "Set a token via the auth store and issue an API call through the client",
+      "Assert the outgoing request carries header Authorization: Bearer <token>",
+      "Clear the token and issue the call again",
+      "Assert no Authorization header is attached"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F173",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "A 401 response clears the session and redirects to the login screen",
+    "steps": [
+      "Mock an API call returning 401",
+      "Invoke the call through the shared client",
+      "Assert the stored token is cleared",
+      "Assert the router navigates to the login route"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F174",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "Successful registration navigates the customer to the KYC screen",
+    "steps": [
+      "Render the Register screen and fill email, password, full name and date of birth",
+      "Submit the form with the register endpoint mocked to return 201",
+      "Assert POST /api/v1/auth/register was called with the entered values",
+      "Assert the router navigated to the KYC route"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F175",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "A duplicate email registration renders a visible field-level error",
+    "steps": [
+      "Submit the Register form with the endpoint mocked to return 409",
+      "Assert an error message is rendered identifying the email as already registered",
+      "Assert the router did not navigate away from the Register screen"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F176",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "A verified KYC result is rendered and directs the customer to login",
+    "steps": [
+      "Render the KYC screen and submit a document with the endpoint mocked to return status VERIFIED",
+      "Assert a success state naming the VERIFIED outcome is rendered",
+      "Assert a control routing to the login screen is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F177",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "A rejected KYC result renders a distinct failure state and does not offer login",
+    "steps": [
+      "Submit the KYC form with the endpoint mocked to return status REJECTED",
+      "Assert a failure state is rendered that is visually and textually distinct from the verified state",
+      "Assert the rejection reason returned by the API is displayed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F178",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "A pre-KYC login renders a KYC-pending message distinct from a credentials error",
+    "steps": [
+      "Submit the Login form with the endpoint mocked to return 403 and a PENDING_KYC error code",
+      "Assert the rendered message refers to pending KYC verification",
+      "Assert the message text differs from the message rendered for a 401 response"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F179",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "Invalid credentials render a generic error that does not disclose account existence",
+    "steps": [
+      "Submit the Login form with the endpoint mocked to return 401",
+      "Assert a generic invalid-credentials message is rendered",
+      "Assert the message does not state whether the email exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F180",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "Successful login stores the token and routes to the dashboard",
+    "steps": [
+      "Submit the Login form with the endpoint mocked to return 200 and an access_token",
+      "Assert the token is written to the auth store",
+      "Assert the router navigated to the dashboard route"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F181",
+    "category": "ui",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "All onboarding form inputs have associated labels and linked error messages",
+    "steps": [
+      "Render each of the Register, KYC and Login screens",
+      "Assert every input is retrievable by its accessible label via getByLabelText",
+      "Trigger a validation error and assert the input carries aria-describedby pointing at the error element",
+      "Run an axe accessibility scan on each screen and assert zero violations"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F182",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The dashboard renders each owned account with a two-decimal formatted balance",
+    "steps": [
+      "Render the Dashboard with the accounts endpoint mocked to return two accounts with balances '1000.5' and '0'",
+      "Assert two account cards are rendered",
+      "Assert the displayed balances read '1,000.50' and '0.00'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F183",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "A customer with no accounts sees an empty state with an open-account action",
+    "steps": [
+      "Render the Dashboard with the accounts endpoint mocked to return an empty array",
+      "Assert an empty state message is rendered",
+      "Assert a visible control to open a savings account is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F184",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "Opening an account adds it to the dashboard showing a 0.00 balance",
+    "steps": [
+      "Render the Dashboard and activate the open-account control with the endpoint mocked to return 201 and balance '0.00'",
+      "Assert POST /api/v1/accounts was called",
+      "Assert a new account card appears with the displayed balance '0.00'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F185",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The statement renders most-recent-first with each row showing direction and amount",
+    "steps": [
+      "Render AccountDetail with the statements endpoint mocked to return 20 items and total 25",
+      "Assert 20 statement rows are rendered",
+      "Assert the first row corresponds to the newest transaction in the mocked payload",
+      "Assert each row displays its direction and a two-decimal formatted amount"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F186",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "Pagination controls request the next page of statements",
+    "steps": [
+      "Render AccountDetail with total 25 and page size 20",
+      "Activate the next-page control",
+      "Assert the statements endpoint was called with page=2",
+      "Assert the rendered rows update to the second page payload"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F187",
+    "category": "ui",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "An account with no transactions renders an empty statement state",
+    "steps": [
+      "Render AccountDetail with the statements endpoint mocked to return an empty items array and total 0",
+      "Assert an empty-state message is rendered",
+      "Assert no error message and no loading spinner remains visible"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F188",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "Adding a beneficiary appends it to the rendered list",
+    "steps": [
+      "Render the Beneficiaries screen with the list endpoint mocked to return one payee",
+      "Submit the add form with the create endpoint mocked to return 201",
+      "Assert POST /api/v1/beneficiaries was called with the entered nickname and account number",
+      "Assert the new payee appears in the rendered list"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F189",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "Removing a beneficiary removes it from the rendered list",
+    "steps": [
+      "Render the Beneficiaries screen with two saved payees",
+      "Activate the remove control on the first payee with the endpoint mocked to return 204",
+      "Assert DELETE /api/v1/beneficiaries/{id} was called",
+      "Assert the removed payee is no longer rendered and one payee remains"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F190",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "A transfer can be submitted by selecting a saved beneficiary",
+    "steps": [
+      "Render the Transfer screen with one saved beneficiary available",
+      "Select the saved beneficiary, enter amount '250.00' and confirm",
+      "Assert POST /api/v1/transfers was called with that beneficiary's destination account number",
+      "Assert a success state is rendered on a 201 response"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F191",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "A transfer can be submitted to a directly entered non-beneficiary account number",
+    "steps": [
+      "Render the Transfer screen and enter a destination account number directly without selecting a saved payee",
+      "Enter amount '50.00' and confirm with the endpoint mocked to return 201",
+      "Assert POST /api/v1/transfers was called with the entered account number",
+      "Assert a success state is rendered and no message claims a beneficiary is required"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F192",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "An insufficient-funds response renders a distinct, explicitly worded failure state",
+    "steps": [
+      "Submit a transfer with the endpoint mocked to return 422 and error code INSUFFICIENT_FUNDS",
+      "Assert a failure state is rendered whose text names insufficient funds",
+      "Assert the failure state is visually distinct from the success state",
+      "Assert the displayed source balance is unchanged from before the attempt"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F193",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "Transfer success and failure outcomes are announced through an aria-live region",
+    "steps": [
+      "Render the Transfer screen and assert an element with aria-live is present",
+      "Submit a transfer that succeeds and assert the live region content names the success",
+      "Submit a transfer that fails with INSUFFICIENT_FUNDS and assert the live region content names the failure"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F194",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "Client-side validation blocks over-precision and non-positive transfer amounts",
+    "steps": [
+      "Enter amount '10.001' in the Transfer form and attempt to confirm",
+      "Assert a validation message is rendered and no API call was made",
+      "Enter amount '0' and attempt to confirm, asserting a validation message and no API call",
+      "Enter amount '10.00' and assert confirmation proceeds"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F195",
+    "category": "ui",
+    "story": "E6-S4",
+    "group": "G",
+    "description": "The confirm step restates the exact amount and destination before submission",
+    "steps": [
+      "Enter a destination and amount '250.00' then advance to the confirm step",
+      "Assert the confirm step displays the formatted amount '250.00'",
+      "Assert it displays the destination account identifier being credited"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F196",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "A submitted loan application renders with APPLIED status",
+    "steps": [
+      "Render the Loans screen and submit principal '5000.00', tenure 24 and a purpose",
+      "Assert POST /api/v1/loans was called with those values",
+      "Assert the new application is rendered in the list with status APPLIED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F197",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "The application form validates structural input only and asserts no eligibility outcome",
+    "steps": [
+      "Enter principal '0' and attempt to submit, asserting a validation message and no API call",
+      "Enter principal '5000.001' and assert a validation message about decimal places",
+      "Assert no rendered text claims the customer is eligible or ineligible before the administrator decides"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F198",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "The loan timeline renders every transition chronologically with reason and timestamp",
+    "steps": [
+      "Render the Loans screen with a loan mocked as having transitions to UNDER_REVIEW and APPROVED",
+      "Assert a timeline with 2 transition entries is rendered",
+      "Assert the entries appear in chronological order",
+      "Assert each entry displays its status, reason and timestamp"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F199",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "A rejected loan surfaces the administrator's recorded reason",
+    "steps": [
+      "Render the Loans screen with a loan mocked as REJECTED carrying reason 'Insufficient documentation'",
+      "Assert the status REJECTED is rendered",
+      "Assert the reason text 'Insufficient documentation' is visible to the customer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F200",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "A disbursed loan indicates the credited amount",
+    "steps": [
+      "Render the Loans screen with a loan mocked as DISBURSED with principal '5000.00'",
+      "Assert the status DISBURSED is rendered",
+      "Assert the formatted principal '5,000.00' is displayed as the disbursed amount"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F201",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "A customer with no loans sees an empty state with an apply action",
+    "steps": [
+      "Render the Loans screen with the loans endpoint mocked to return an empty array",
+      "Assert an empty-state message is rendered",
+      "Assert a visible control to start a loan application is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F202",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "The loan queue renders applications with their key fields",
+    "steps": [
+      "Render the LoanQueue with the admin loans endpoint mocked to return three applications",
+      "Assert three queue rows are rendered",
+      "Assert each row displays applicant, formatted principal, tenure and status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F203",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "Selecting a status filter re-queries the admin loans endpoint",
+    "steps": [
+      "Render the LoanQueue and select the UNDER_REVIEW status filter",
+      "Assert GET /api/v1/admin/loans was called with status=UNDER_REVIEW",
+      "Assert the rendered rows update to the filtered payload"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F204",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "Approving with an empty reason is blocked before any API call",
+    "steps": [
+      "Open the approve action on an UNDER_REVIEW loan and leave the reason field empty",
+      "Attempt to submit the decision",
+      "Assert no POST to the approve endpoint was made",
+      "Assert a validation message or disabled submit control prevents the action"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F205",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "Rejecting with a whitespace-only reason is blocked before any API call",
+    "steps": [
+      "Open the reject action and enter only spaces in the reason field",
+      "Attempt to submit the decision",
+      "Assert no POST to the reject endpoint was made",
+      "Assert a validation message is rendered"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F206",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "A valid approval calls the approve endpoint and updates the row status",
+    "steps": [
+      "Open the approve action on an UNDER_REVIEW loan and enter reason 'Documents verified'",
+      "Submit with the endpoint mocked to return 200 and status APPROVED",
+      "Assert POST /api/v1/admin/loans/{id}/approve was called with that reason",
+      "Assert the row status updates to APPROVED without a page reload"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F207",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "A valid rejection calls the reject endpoint and updates the row status",
+    "steps": [
+      "Open the reject action and enter reason 'Insufficient documentation'",
+      "Submit with the endpoint mocked to return 200 and status REJECTED",
+      "Assert POST /api/v1/admin/loans/{id}/reject was called with that reason",
+      "Assert the row status updates to REJECTED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F208",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "Actions are offered only where the transition is legal for the row's status",
+    "steps": [
+      "Render the queue with loans in APPLIED, UNDER_REVIEW and APPROVED states",
+      "Assert the APPLIED row offers review but not approve or disburse",
+      "Assert the UNDER_REVIEW row offers approve and reject but not disburse",
+      "Assert the APPROVED row offers disburse"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F209",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "A 409 response renders an explicit illegal-transition message",
+    "steps": [
+      "Trigger a decision action with the endpoint mocked to return 409",
+      "Assert an error message referring to an invalid state transition is rendered",
+      "Assert the row status is not optimistically changed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F210",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "The audit viewer renders all required columns for each ledger entry",
+    "steps": [
+      "Render the AuditLog with the endpoint mocked to return entries for a Transfer and a LoanApplication",
+      "Assert both entries are rendered as rows",
+      "Assert each row displays timestamp, actor, action, entity type and entity reference"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F211",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "Audit filters re-query the endpoint with the chosen entity type and date range",
+    "steps": [
+      "Render the AuditLog and select entity type 'Transfer'",
+      "Assert GET /api/v1/admin/audit was called with entity_type=Transfer",
+      "Apply a date range filter and assert the endpoint was called with the from and to values",
+      "Assert the rendered rows update to the filtered payload"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F212",
+    "category": "security",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "The audit viewer exposes no edit or delete affordance",
+    "steps": [
+      "Render the AuditLog with several entries",
+      "Assert no button or link with an edit, delete or remove accessible name is present",
+      "Run: grep -niE 'delete|put|patch|post' frontend/src/pages/admin/AuditLog.tsx",
+      "Assert no mutating API call against the audit resource is found"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F213",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "The notification viewer renders channel, event type and status for each entry",
+    "steps": [
+      "Render the Notifications screen with the endpoint mocked to return a transfer event and a loan transition event",
+      "Assert both entries are rendered as rows",
+      "Assert each row displays channel, event_type and status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F214",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "G",
+    "description": "Notification delivery status values are visually distinguishable",
+    "steps": [
+      "Render the Notifications screen with entries in QUEUED, SENT and FAILED status",
+      "Assert all three rows render",
+      "Assert the FAILED entry is rendered with a distinct status treatment from SENT",
+      "Assert the status is conveyed by text and not by colour alone"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F215",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Customer screens render without horizontal overflow at mobile and tablet widths",
+    "steps": [
+      "Load each customer screen in Playwright at a 375px viewport",
+      "Assert document.scrollWidth is not greater than the 375px viewport width on each",
+      "Repeat at a 768px viewport and assert no horizontal overflow on each screen"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F216",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Admin tabular screens remain usable at the desktop breakpoint",
+    "steps": [
+      "Load the admin loan queue and audit log at a 1440px viewport",
+      "Assert all table column headers are visible without horizontal scrolling",
+      "Assert row action controls are reachable and not clipped"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F217",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Axe reports zero serious or critical violations across all screens",
+    "steps": [
+      "Run an axe scan against each of the eleven screens at a 375px viewport",
+      "Assert the count of violations with impact 'serious' or 'critical' is 0 for each",
+      "Repeat the scan at a 1440px viewport and assert the same",
+      "Write the axe results to a committed artefact for evidence"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F218",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "The transfer flow can be completed end to end using only the keyboard",
+    "steps": [
+      "Load the Transfer screen in Playwright and navigate using Tab and Enter only",
+      "Complete destination entry, amount entry and confirmation without using the mouse",
+      "Assert the success state is reached",
+      "Assert every focused element shows a visible focus indicator distinguishable from its unfocused state"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F219",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "The loan review flow including the reason field is keyboard operable",
+    "steps": [
+      "Load the admin LoanQueue and navigate to a loan's approve action using the keyboard only",
+      "Enter a reason and submit using the keyboard only",
+      "Assert the decision is submitted successfully",
+      "Assert focus is moved to the resulting status message"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F220",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "Each screen exposes semantic landmarks and exactly one h1",
+    "steps": [
+      "Load each screen and query for main, nav and header landmark roles",
+      "Assert a main landmark is present on every screen",
+      "Assert exactly one h1 element exists per screen"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F221",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "H",
+    "description": "All rendered money values meet AA contrast against their background",
+    "steps": [
+      "Load the Dashboard, AccountDetail and Transfer screens",
+      "Compute the computed-style contrast ratio for each rendered money element against its background",
+      "Assert every ratio is at least 4.5:1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F222",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "At least three architecture structural tests exist and pass in the default test run",
+    "steps": [
+      "Count test functions under tests/architecture/ and assert the count is at least 3",
+      "Run the default backend test command",
+      "Assert the architecture tests are collected and all pass",
+      "Assert the process exit code is 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F223",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "The import-linter contract passes against the clean codebase",
+    "steps": [
+      "Run: cd backend && uv run lint-imports",
+      "Assert the process exit code is 0",
+      "Assert the output reports the layered contract as kept"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F224",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "An injected upward import is detected and fails the contract",
+    "steps": [
+      "Temporarily add an import of src.api into a module under src/repository/",
+      "Run: cd backend && uv run lint-imports",
+      "Assert the process exit code is non-zero and the violation is named in the output",
+      "Revert the temporary import and assert the contract passes again"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F225",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "No API route module imports a repository module directly",
+    "steps": [
+      "Run: grep -rnE 'from (backend\\.)?src\\.repository|import (backend\\.)?src\\.repository' backend/src/api/routes/",
+      "Assert the command exits with status 1 (no matches)",
+      "Assert the equivalent structural test in tests/architecture/ passes"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F226",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "The domain policy package has no dependency outside the standard library and types",
+    "steps": [
+      "Parse the import statements of every module under backend/src/domain/",
+      "Assert no import references src.config, src.repository, src.service or src.api",
+      "Assert no third-party package is imported by any domain module",
+      "Assert the corresponding structural test passes"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F227",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "Dependency-cruiser reports zero frontend boundary violations",
+    "steps": [
+      "Run the dependency-cruiser validation command in the frontend workspace",
+      "Assert the process exit code is 0",
+      "Assert the reported error count is 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F228",
+    "category": "security",
+    "story": "E8-S2",
+    "group": "A",
+    "description": "The money-precision hook blocks a write introducing float into a money path",
+    "steps": [
+      "Invoke the hook with a candidate write containing 'balance: float = 0.0'",
+      "Assert the hook exits with a blocking status and emits a message naming the money precision rule",
+      "Invoke the hook with the equivalent 'balance: Decimal' write",
+      "Assert the hook permits the write"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F229",
+    "category": "security",
+    "story": "E8-S2",
+    "group": "A",
+    "description": "The audit-immutability hook blocks writes that mutate the audit table",
+    "steps": [
+      "Invoke the hook with a candidate write containing 'DELETE FROM audit_entries'",
+      "Assert the hook exits with a blocking status",
+      "Invoke the hook with a write containing an ORM update against the AuditEntry model and assert it is blocked",
+      "Invoke the hook with an audit append call and assert it is permitted"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F230",
+    "category": "security",
+    "story": "E8-S2",
+    "group": "A",
+    "description": "The pii-scrub hook blocks writes that log credentials or document numbers",
+    "steps": [
+      "Invoke the hook with a candidate write containing logger.info with a password variable interpolated",
+      "Assert the hook exits with a blocking status",
+      "Invoke the hook with a write logging a document_number field and assert it is blocked",
+      "Invoke the hook with a write logging only a correlation_id and assert it is permitted"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F231",
+    "category": "integration",
+    "story": "E8-S2",
+    "group": "A",
+    "description": "At least two banking-specific skills exist beyond the Harness defaults",
+    "steps": [
+      "List the directories under .claude/skills/ and identify those added for the banking domain",
+      "Assert at least 2 banking-specific skills are present",
+      "Assert each has a SKILL.md with a valid name and description front matter"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F232",
+    "category": "integration",
+    "story": "E8-S2",
+    "group": "A",
+    "description": "At least two banking-specific commands exist beyond scaffold.md",
+    "steps": [
+      "List the files under .claude/commands/",
+      "Assert the count is at least 3 including the pre-existing scaffold.md",
+      "Assert at least 2 files are banking-domain commands",
+      "Assert each command file carries a valid description front matter"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F233",
+    "category": "integration",
+    "story": "E8-S2",
+    "group": "A",
+    "description": "At least two banking-specific agent definitions exist with valid front matter",
+    "steps": [
+      "List the files under .claude/agents/ and identify those added for the banking domain",
+      "Assert at least 2 banking-specific agents are present beyond the seven Harness defaults",
+      "Assert each declares a name, a description and a tools list",
+      "Assert each agent file parses as valid front matter plus body"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F234",
+    "category": "integration",
+    "story": "E8-S3",
+    "group": "F",
+    "description": "init.sh brings the full stack up from a clean checkout",
+    "steps": [
+      "From a clean checkout with no database file, run ./init.sh",
+      "Poll http://localhost:8000/health with 5 retries at 2s backoff",
+      "Assert a 200 response with status 'ok' is received",
+      "Assert the frontend root at http://localhost:3000 returns a 200 response"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F235",
+    "category": "integration",
+    "story": "E8-S3",
+    "group": "F",
+    "description": "The seed script is idempotent and can be re-run without duplicating data",
+    "steps": [
+      "Run the seed script twice against the same database",
+      "Assert the second run exits with status 0",
+      "Assert the customer count is the same after both runs",
+      "Assert exactly one admin customer exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F236",
+    "category": "integration",
+    "story": "E8-S3",
+    "group": "F",
+    "description": "Seeded data covers funded customers, a beneficiary and loans in each reviewable state",
+    "steps": [
+      "Run the seed script against a clean database",
+      "Assert at least 2 customers exist with role CUSTOMER and at least one account each with a balance above 0.00",
+      "Assert at least one beneficiary row exists",
+      "Assert at least one loan exists in each of APPLIED, UNDER_REVIEW and APPROVED status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F237",
+    "category": "security",
+    "story": "E8-S3",
+    "group": "F",
+    "description": "Exactly one administrator exists and is created only by the seed script",
+    "steps": [
+      "Run the seed script and query customers with role ADMIN",
+      "Assert exactly one admin row exists",
+      "Run: grep -rn 'Role.ADMIN' backend/src/api/ and assert no route assigns the ADMIN role"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F238",
+    "category": "security",
+    "story": "E8-S3",
+    "group": "F",
+    "description": "All seeded records use reserved synthetic identifiers",
+    "steps": [
+      "Read every seeded customer email address",
+      "Assert each uses a reserved test domain such as .test or example.com",
+      "Assert no seeded document number matches a real-world identifier format in production use",
+      "Run the detect-secrets hook against the seed script and assert it reports no findings"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F239",
+    "category": "integration",
+    "story": "E8-S3",
+    "group": "F",
+    "description": "The README quick-start covers prerequisites, the run command and seeded credentials",
+    "steps": [
+      "Assert README.md exists and contains a quick-start section",
+      "Assert it names the prerequisite runtimes and the ./init.sh command",
+      "Assert it documents the seeded administrator login and the API and UI URLs",
+      "Assert it states that all data is synthetic"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F240",
+    "category": "integration",
+    "story": "E8-S4",
+    "group": "G",
+    "description": "The GitLab CI configuration is valid and defines build and test stages for both workspaces",
+    "steps": [
+      "Assert .gitlab-ci.yml exists at the repository root",
+      "Parse the file with a YAML parser and assert it loads without error",
+      "Assert the stages list includes a build stage and a test stage",
+      "Assert jobs exist that run the backend pytest suite and the frontend vitest suite"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F241",
+    "category": "integration",
+    "story": "E8-S4",
+    "group": "G",
+    "description": "No GitHub Actions workflow is used as the graded CI artefact",
+    "steps": [
+      "Assert .gitlab-ci.yml is present and non-empty",
+      "Assert the CI test job references the architecture structural tests",
+      "Assert the pipeline does not depend on .github/workflows to run the graded checks"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F242",
+    "category": "integration",
+    "story": "E8-S4",
+    "group": "G",
+    "description": "The coverage gate blocks the pipeline below the 80% floor",
+    "steps": [
+      "Run the backend test job with the coverage threshold configured at 80",
+      "Assert pytest is invoked with a fail-under setting of 80",
+      "Simulate a run whose coverage is below 80 and assert the job exits non-zero",
+      "Assert the committed coverage artefact exists after a passing run"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F243",
+    "category": "security",
+    "story": "E8-S4",
+    "group": "G",
+    "description": "The Claude Code Action job reads credentials from CI variables and commits no secret",
+    "steps": [
+      "Assert .gitlab-ci.yml defines a job invoking the Claude Code Action or equivalent",
+      "Assert the job references an API key through a CI variable reference",
+      "Run: grep -nE 'sk-ant|ANTHROPIC_API_KEY\\s*[:=]\\s*[A-Za-z0-9]' .gitlab-ci.yml",
+      "Assert the command returns no match"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F244",
+    "category": "integration",
+    "story": "E8-S4",
+    "group": "G",
+    "description": "Lint and typecheck gates run for both workspaces and fail the pipeline on error",
+    "steps": [
+      "Assert the pipeline defines jobs running ruff check and mypy for the backend",
+      "Assert it defines jobs running eslint and tsc for the frontend",
+      "Introduce a deliberate type error and run the typecheck job",
+      "Assert the job exits non-zero, then revert and assert it passes"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F245",
+    "category": "integration",
+    "story": "E9-S1",
+    "group": "I",
+    "description": "The root .mcp.json declares a Playwright MCP server and parses as valid JSON",
+    "steps": [
+      "Assert .mcp.json exists at the repository root",
+      "Parse it with json.loads and assert it loads without error",
+      "Assert it contains an mcpServers entry naming a Playwright server",
+      "Assert the entry declares a runnable command"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F246",
+    "category": "integration",
+    "story": "E9-S1",
+    "group": "I",
+    "description": "An evaluator run produces a committed artefact evidencing Playwright MCP invocation",
+    "steps": [
+      "Run the evaluator against the running application",
+      "Assert an artefact is written under specs/reviews/ for that run",
+      "Assert the artefact records the Playwright MCP driven UI verification steps and their pass or fail outcome",
+      "Assert the artefact references at least one screen verified through MCP rather than through direct HTTP calls"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F247",
+    "category": "integration",
+    "story": "E9-S1",
+    "group": "I",
+    "description": "The E2E suite covers every acceptance criterion journey and passes",
+    "steps": [
+      "Run the Playwright suite against the seeded running system",
+      "Assert the process exit code is 0",
+      "Assert at least one spec exists referencing each of AC-01 through AC-10 by identifier",
+      "Assert the onboarding, transfer, loan application and admin review journeys each have a passing spec"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F248",
+    "category": "integration",
+    "story": "E9-S1",
+    "group": "I",
+    "description": "An end-to-end transfer journey asserts money conservation in the browser",
+    "steps": [
+      "Log in as a seeded funded customer and record the displayed balances of both accounts",
+      "Complete a transfer through the UI",
+      "Assert the source balance decreased and the destination increased by exactly the transferred amount",
+      "Assert the sum of the two displayed balances is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F249",
+    "category": "ui",
+    "story": "E9-S1",
+    "group": "I",
+    "description": "Snapshots are committed for all three breakpoints and are stable across runs",
+    "steps": [
+      "Run the Playwright suite with snapshot capture enabled",
+      "Assert a committed snapshot directory exists containing images for the 375px, 768px and 1440px viewports",
+      "Re-run the suite against unchanged UI",
+      "Assert no snapshot comparison failure is reported"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F250",
+    "category": "integration",
+    "story": "E9-S2",
+    "group": "B",
+    "description": "A script under scripts/ imports and invokes the Claude Agent SDK programmatically",
+    "steps": [
+      "List Python files under scripts/ and assert at least one exists",
+      "Run: grep -rnE 'claude_agent_sdk|claude_code_sdk' scripts/ and assert at least one import match",
+      "Assert the script calls an SDK entry point such as a query or client invocation",
+      "Assert the file is not merely a slash command definition or an agent markdown file"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F251",
+    "category": "integration",
+    "story": "E9-S2",
+    "group": "B",
+    "description": "The SDK script is executable and exits cleanly in a dry-run mode",
+    "steps": [
+      "Run the script with a dry-run or help flag",
+      "Assert the process exits with status 0",
+      "Assert it prints a usage or plan summary rather than raising an import error"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F252",
+    "category": "functional",
+    "story": "E9-S2",
+    "group": "B",
+    "description": "The SDK script performs a real repository task and writes an output artefact",
+    "steps": [
+      "Run the script against the repository",
+      "Assert it exits with status 0",
+      "Assert it writes an output artefact to a documented path",
+      "Assert the artefact content reflects actual repository state rather than static placeholder text"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F253",
+    "category": "security",
+    "story": "E9-S2",
+    "group": "B",
+    "description": "The SDK script contains no committed credential",
+    "steps": [
+      "Run: grep -nE 'sk-ant-[A-Za-z0-9]' scripts/ and assert no match",
+      "Assert the script reads its key from an environment variable",
+      "Run the detect-secrets hook against scripts/ and assert it reports no findings"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F254",
+    "category": "integration",
+    "story": "E9-S2",
+    "group": "B",
+    "description": "The Agent SDK is a declared dependency rather than an ambient install",
+    "steps": [
+      "Locate the dependency manifest covering scripts/",
+      "Assert the Claude Agent SDK package is listed as a dependency",
+      "Assert a lockfile entry exists for it",
+      "Install from the manifest in a clean environment and assert the script imports successfully"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F255",
+    "category": "integration",
+    "story": "E9-S3",
+    "group": "B",
+    "description": "The root plugin.json exists, parses, and identifies the banking substrate",
+    "steps": [
+      "Assert plugin.json exists at the repository root",
+      "Parse it with json.loads and assert it loads without error",
+      "Assert it declares name, version and description fields",
+      "Assert the description identifies the ClaudeForge banking substrate rather than the generic Harness"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F256",
+    "category": "integration",
+    "story": "E9-S3",
+    "group": "B",
+    "description": "The root and Harness plugin manifests both exist and differ in content",
+    "steps": [
+      "Assert both plugin.json and .claude/.claude-plugin/plugin.json exist",
+      "Compute a hash of each file's contents",
+      "Assert the two hashes differ",
+      "Assert the root manifest declares a different name from the Harness manifest"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F257",
+    "category": "integration",
+    "story": "E9-S3",
+    "group": "B",
+    "description": "Every substrate path referenced by the root plugin manifest resolves to an existing file",
+    "steps": [
+      "Parse plugin.json and collect every referenced agent, skill, command and hook path",
+      "Assert the manifest references at least 2 agents, 2 skills, 2 commands and 1 hook",
+      "Assert every referenced path exists on disk",
+      "Assert no referenced path points outside the repository"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F258",
+    "category": "integration",
+    "story": "E9-S4",
+    "group": "A",
+    "description": "specs/app_spec.md states all ten ACs and all eight NFRs",
+    "steps": [
+      "Assert specs/app_spec.md exists",
+      "Assert it contains an identifier for each of AC-01 through AC-10",
+      "Assert it contains an identifier for each of NFR-01 through NFR-08",
+      "Assert each identifier is accompanied by a full requirement statement rather than a bare reference"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F259",
+    "category": "integration",
+    "story": "E9-S4",
+    "group": "A",
+    "description": "CLAUDE.md references app_spec.md instead of restating the requirement text",
+    "steps": [
+      "Read CLAUDE.md and assert it contains a reference to specs/app_spec.md as the authoritative requirement source",
+      "Assert CLAUDE.md no longer contains the full inline NFR-01 through NFR-08 statement table",
+      "Assert the Spec-Is-Truth rule remains stated in CLAUDE.md"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F260",
+    "category": "integration",
+    "story": "E9-S4",
+    "group": "A",
+    "description": "No requirement identifier is defined in two places with differing text",
+    "steps": [
+      "Extract every AC-NN and NFR-NN statement from specs/app_spec.md",
+      "Extract any AC-NN or NFR-NN statement remaining in CLAUDE.md",
+      "Assert no identifier carries a substantive requirement statement in both files",
+      "Assert the two documents do not contradict each other"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F261",
+    "category": "integration",
+    "story": "E9-S4",
+    "group": "A",
+    "description": "Every acceptance criterion traces to a story and a feature",
+    "steps": [
+      "Parse the AC identifiers from specs/app_spec.md",
+      "Grep specs/stories/ for each identifier and assert every AC appears in at least one story file",
+      "Parse specs/features.json and assert every AC identifier appears in at least one feature description or step",
+      "Assert no AC identifier is unreferenced"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F262",
+    "category": "integration",
+    "story": "E9-S4",
+    "group": "A",
+    "description": "The authoritative spec contains no invented business rule",
+    "steps": [
+      "Run: grep -niE 'daily cap|transfer cap|velocity|minimum balance|eligibility threshold|minimum age' specs/app_spec.md",
+      "Assert the command returns no match asserting such a rule as a requirement",
+      "Assert any mention of these appears only as an explicit statement that no such rule exists",
+      "Assert every requirement in the file cites an AC-NN or NFR-NN identifier"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F263",
+    "category": "integration",
+    "story": "E9-S5",
+    "group": "J",
+    "description": "The architecture document contains a diagram covering all six layers",
+    "steps": [
+      "Assert docs/architecture.md exists",
+      "Assert it contains a diagram block such as a mermaid graph or an embedded image reference",
+      "Assert the diagram names all six layers Types, Config, Repository, Service, API and UI",
+      "Assert the audit and notification modules are shown as cross-cutting"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F264",
+    "category": "integration",
+    "story": "E9-S5",
+    "group": "J",
+    "description": "The TDD document includes a concrete red-then-green worked example",
+    "steps": [
+      "Assert docs/tdd.md exists",
+      "Assert it contains a worked example naming a specific test and the implementation that followed",
+      "Assert it shows the failing state preceding the passing state",
+      "Assert it references the 80% coverage floor and the 100% target"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F265",
+    "category": "integration",
+    "story": "E9-S5",
+    "group": "J",
+    "description": "A recorded fix loop documents the full detect-to-PR trace",
+    "steps": [
+      "Assert at least one file exists under docs/fix-loops/",
+      "Assert it documents distinct detect, reproduce, fix and validate phases",
+      "Assert it references a real failing test or evaluator finding by identifier",
+      "Assert it links to the branch or merge that resolved it"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F266",
+    "category": "integration",
+    "story": "E9-S5",
+    "group": "J",
+    "description": "Knowledge deposits are recorded and cross-referenced to learned rules",
+    "steps": [
+      "Assert docs/knowledge-deposits.md exists and contains at least one dated entry",
+      "Assert each entry states a reusable lesson rather than a task log line",
+      "Assert it cross-references .claude/state/learned-rules.md"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F267",
+    "category": "integration",
+    "story": "E9-S5",
+    "group": "J",
+    "description": "At least two sprint cycles are evidenced by contracts and evaluator outputs",
+    "steps": [
+      "List files under sprint-contracts/ and assert at least 2 sprint contracts exist",
+      "List files under specs/reviews/ and assert at least 2 evaluator outputs exist",
+      "Assert the outputs are from distinct iterations showing a ratcheting improvement in score or pass count"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  }
+]
