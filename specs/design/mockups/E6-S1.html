@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design system — Horizon Bank mockup (E6-S1)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0B1F33;--ink-2:#1C3A57;--canvas:#F1F4F8;--surface:#FFFFFF;--line:#D9E1EA;
+  --muted:#54677A;--accent:#A2541F;--accent-soft:#FAF0E7;
+  --ok:#186B41;--ok-soft:#E7F3EC;--warn:#7C5200;--warn-soft:#FCF2DF;
+  --danger:#A5251B;--danger-soft:#FCEBE9;
+  --r:10px;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+body{font-family:var(--sans);background:var(--canvas);color:var(--ink);line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.money{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-.01em}
+a{color:var(--accent)}
+/* ---------- chrome ---------- */
+.top{background:var(--ink);color:#fff;padding:0 clamp(16px,4vw,32px)}
+.top-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:24px;
+  min-height:60px;flex-wrap:wrap}
+.mark{font-family:var(--serif);font-size:19px;letter-spacing:.02em;padding:8px 0}
+.mark span{color:#D9A06B}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav a{color:#C3D2E0;text-decoration:none;padding:8px 12px;border-radius:6px;font-size:14px}
+nav a[aria-current="page"]{background:rgba(255,255,255,.12);color:#fff}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+a:focus-visible{outline:3px solid #D9A06B;outline-offset:2px}
+main{max-width:1200px;margin:0 auto;padding:clamp(20px,4vw,36px) clamp(16px,4vw,32px) 64px}
+h1{font-family:var(--serif);font-size:clamp(24px,4vw,31px);font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+  font-weight:600;margin-bottom:12px}
+.sub{color:var(--muted);margin-top:6px;font-size:15px;max-width:62ch}
+.head{margin-bottom:28px}
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.grid{display:grid;gap:16px}
+@media(min-width:768px){.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1100px){.split{grid-template-columns:1.6fr 1fr}}
+/* ---------- balance ---------- */
+.bal{font-size:clamp(30px,6vw,40px);font-weight:600;letter-spacing:-.02em;margin:6px 0 2px}
+.acct{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* ---------- pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:4px 10px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--danger-soft);color:var(--danger)}
+.p-neutral{background:#EDF1F6;color:var(--ink-2)}
+/* ---------- table ---------- */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line);background:#FAFBFD}
+td{padding:13px 16px;border-bottom:1px solid #EEF2F6}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+.debit{color:var(--danger)}
+.credit{color:var(--ok)}
+/* ---------- forms ---------- */
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.hint{font-size:12.5px;color:var(--muted);font-weight:400;margin-top:5px}
+input,select,textarea{width:100%;padding:11px 13px;border:1px solid #B9C6D4;border-radius:8px;
+  font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{border-color:var(--ink-2)}
+.field{margin-bottom:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;
+  border-radius:8px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-ghost{background:#fff;border-color:#B9C6D4;color:var(--ink)}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-bad{background:#fff;border-color:var(--danger);color:var(--danger)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+/* ---------- messages ---------- */
+.note{border-left:3px solid;padding:13px 16px;border-radius:0 8px 8px 0;font-size:14px}
+.n-ok{background:var(--ok-soft);border-color:var(--ok)}
+.n-bad{background:var(--danger-soft);border-color:var(--danger)}
+.n-info{background:var(--accent-soft);border-color:var(--accent)}
+.err{color:var(--danger);font-size:13px;margin-top:6px;font-weight:500}
+/* ---------- timeline ---------- */
+.tl{list-style:none;position:relative;padding-left:26px}
+.tl::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tl li{position:relative;padding:0 0 22px}
+.tl li::before{content:"";position:absolute;left:-24px;top:5px;width:11px;height:11px;
+  border-radius:50%;background:#fff;border:2px solid var(--line)}
+.tl li.done::before{background:var(--ok);border-color:var(--ok)}
+.tl li.now::before{background:var(--accent);border-color:var(--accent)}
+.tl .when{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl .what{font-weight:600;font-size:14.5px}
+.tl .why{font-size:13.5px;color:var(--muted);margin-top:3px}
+/* ---------- misc ---------- */
+.kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;
+  border-bottom:1px solid #EEF2F6;font-size:14px}
+.kv:last-child{border:0}
+.kv dt{color:var(--muted)}
+.kv dd{font-weight:600;font-variant-numeric:tabular-nums}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:14px 16px;
+  font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);flex-wrap:wrap}
+.pager button{padding:7px 12px;border:1px solid #B9C6D4;background:#fff;border-radius:7px;
+  font:inherit;cursor:pointer}
+.spec{max-width:1200px;margin:0 auto 0;padding:16px clamp(16px,4vw,32px) 40px;
+  font-size:13px;color:var(--muted)}
+.spec code{background:#E7EDF4;padding:1px 5px;border-radius:4px;font-size:12px;color:var(--ink-2)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.api{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+  background:#E7EDF4;color:#1C3A57;border:1px solid #D9E1EA;border-radius:5px;padding:2px 6px;
+  margin:4px 0 0 8px;vertical-align:middle;white-space:nowrap;font-weight:600}
+.api-note{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+  color:#54677A;margin-top:6px}
+</style></head><body>
+<a class="sr" href="#main">Skip to main content</a>
+<header class="top"><div class="top-in">
+  <div class="mark">Horizon<span>&#183;</span>Bank</div>
+  <nav aria-label="Primary"><a href="#">Dashboard</a><a href="#">Transfer</a><a href="#">Beneficiaries</a><a href="#">Loans</a></nav>
+</div></header>
+<main id="main">
+
+<div class="head"><h1>Horizon Bank design system</h1>
+<p class="sub">Token set and component inventory shared by every screen. Direction: trustworthy
+financial software, not fintech novelty. Money is the loudest element on any screen it appears on.</p></div>
+
+<h2>Palette</h2>
+<div class="grid g3" style="margin-bottom:32px">
+  <div class="card"><div style="height:56px;background:#0B1F33;border-radius:8px"></div>
+    <p style="margin-top:10px;font-weight:600">Ink &mdash; #0B1F33</p>
+    <p class="hint">Header, primary text. 15.8:1 on canvas.</p></div>
+  <div class="card"><div style="height:56px;background:#A2541F;border-radius:8px"></div>
+    <p style="margin-top:10px;font-weight:600">Copper &mdash; #A2541F</p>
+    <p class="hint">The single decisive accent. 5.2:1 on white; carries white text at 4.9:1.</p></div>
+  <div class="card"><div style="height:56px;background:#F1F4F8;border:1px solid #D9E1EA;border-radius:8px"></div>
+    <p style="margin-top:10px;font-weight:600">Canvas &mdash; #F1F4F8</p>
+    <p class="hint">Page ground. Surfaces sit on it in white.</p></div>
+</div>
+
+<h2>State colour is only ever state</h2>
+<div class="card" style="margin-bottom:32px">
+  <div class="row" style="gap:12px">
+    <span class="pill p-ok">Completed</span><span class="pill p-warn">Under review</span>
+    <span class="pill p-bad">Rejected</span><span class="pill p-neutral">Applied</span>
+  </div>
+  <p class="hint" style="margin-top:14px">Never decorative. A balance never carries a gradient and a
+  failure is never ambiguous.</p>
+</div>
+
+<h2>Money</h2>
+<div class="grid g2" style="margin-bottom:32px">
+  <div class="card">
+    <p class="acct">Savings &middot; HZN0100200300</p>
+    <p class="bal money">12,480.75</p>
+    <p class="hint">Tabular figures so digits align down a column. Rendered from the decimal
+    <em>string</em> the API returns &mdash; the browser never performs arithmetic on money.</p>
+  </div>
+  <div class="card"><h2 style="margin-bottom:10px">Alignment proof</h2>
+    <dl><div class="kv"><dt>Opening</dt><dd class="money">1,204.00</dd></div>
+    <div class="kv"><dt>Transfer out</dt><dd class="money debit">-125.50</dd></div>
+    <div class="kv"><dt>Transfer in</dt><dd class="money credit">+9,999.99</dd></div>
+    <div class="kv"><dt>Closing</dt><dd class="money">11,078.49</dd></div></dl>
+  </div>
+</div>
+
+<h2>Typography &amp; controls</h2>
+<div class="grid g2">
+  <div class="card">
+    <p style="font-family:var(--serif);font-size:29px">Serif for identity</p>
+    <p style="margin-top:6px">System sans for interface text, at 15px with a 1.5 line height.</p>
+    <div class="row" style="margin-top:16px"><button class="btn btn-primary" data-testid="ds-button-primary">Primary</button>
+    <button class="btn btn-ghost" data-testid="ds-button-secondary">Secondary</button></div>
+  </div>
+  <div class="card">
+    <div class="field"><label for="d">Labelled input</label>
+      <input id="d" name="account_number" data-testid="ds-input-account-number" value="HZN0100200300"><p class="hint">Every input has a programmatically
+      associated label and hint.</p></div>
+    <div class="note n-bad" role="alert">Errors are announced, not just coloured.</div>
+  </div>
+</div>
+
+</main>
+<div class="spec"><strong>Mockup E6-S1</strong> &mdash; Tokens consumed by every other mockup. Breakpoints 375 / 768 / 1440. WCAG 2.1 AA:
+contrast verified on all text and every money value, visible focus rings, semantic landmarks.</div>
+</body></html>

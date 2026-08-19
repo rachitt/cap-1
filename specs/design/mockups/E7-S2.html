@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E7-S2 Audit Ledger &amp; Notification Log</title>
+<!--
+  E7-S2 — AC-09 (append-only audit ledger) and the administrator view of AC-10 (notification log).
+  Contract source: api-contracts.md §8 and §9.
+  Audit entry: { id, occurred_at, actor_id, actor_role, action, entity_type, entity_id, correlation_id, metadata_json }.
+  Filters are first-class indexed columns only: action, entity_type, entity_id, actor_id, occurred_from, occurred_to.
+  metadata_json is opaque and is never used in a WHERE predicate (DD-15).
+  Notification: { id, customer_id, channel, event_type, payload, status, failure_reason, correlation_id, created_at, sent_at }.
+
+  NFR-02 — THIS SURFACE IS READ-ONLY BY CONSTRUCTION. There is no edit control, no delete control, no
+  inline editing, no bulk action and no mutating request anywhere on this page. No POST/PUT/PATCH/DELETE
+  route exists against audit_entries anywhere in the API. Both GET endpoints are the only calls here.
+  Desktop-first surface; reflows to stacked cards below 768px. Synthetic data only.
+-->
+<style>
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
+:root{
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
+
+/* page-specific: ledger */
+.lockbar{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;padding:var(--s-4) var(--s-5);
+ background:var(--ink-900);color:var(--paper);border-radius:var(--r-2);border-left:5px solid var(--accent-600)}
+.lockbar p{margin:0}
+.lockbar strong{color:var(--accent-200)}
+.filters{display:grid;gap:var(--s-4);grid-template-columns:1fr;padding:var(--s-4) var(--s-5);background:var(--surface);
+ border:1px solid var(--ink-200);border-left:4px solid var(--ink-900);border-radius:var(--r-2)}
+@media(min-width:700px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1100px){.filters{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.filters .field{margin:0}
+.filters .acts{display:flex;gap:var(--s-3);align-items:flex-end;grid-column:1/-1}
+details.meta summary{cursor:pointer;font:700 var(--t-12)/1.6 var(--f-body);letter-spacing:.08em;text-transform:uppercase;
+ color:var(--accent-700);list-style:none;display:inline-flex;align-items:center;gap:6px;min-height:28px}
+details.meta summary::-webkit-details-marker{display:none}
+details.meta summary::before{content:"+";font-family:var(--f-money);font-size:var(--t-14)}
+details.meta[open] summary::before{content:"−"}
+details.meta pre{margin:var(--s-2) 0 0;padding:var(--s-3);background:var(--ink-900);color:var(--ink-100);
+ border-radius:var(--r-1);font:400 var(--t-12)/1.6 var(--f-money);overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Admin</em></a>
+    <p class="who" style="margin:0">Ravi Deshmukh <span class="badge b-accent">ADMIN</span></p>
+  </div>
+</header>
+
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html" aria-current="page">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html">E9-S1 Verification map</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap" id="main" data-testid="app-main">
+  <p class="eyebrow">E7-S2 &middot; AC-09 &amp; AC-10 &middot; administrator</p>
+  <h1>Audit ledger</h1>
+  <p class="lede">Every financially significant event, in the order it happened, with the actor who caused it and the
+    correlation id that ties it to the log stream. Nothing on this page can change a record.</p>
+
+  <div class="lockbar on-dark" data-testid="audit-readonly-notice" style="margin-top:var(--s-5)">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false" style="flex:none">
+      <path d="M6 9V6.5a5 5 0 0 1 10 0V9" fill="none" stroke="#E9A178" stroke-width="2"/>
+      <rect x="4" y="9" width="14" height="10" fill="none" stroke="#E9A178" stroke-width="2"/>
+    </svg>
+    <p><strong>Append-only.</strong> Entries can be read and filtered. They cannot be edited or deleted &mdash; not by
+      an administrator, not by this interface, not by the API. Immutability is enforced at the repository, at a database
+      trigger, and at a write-time hook. There is deliberately no edit or delete control on this screen.</p>
+  </div>
+
+  <!-- ================================ AUDIT ================================ -->
+  <section aria-labelledby="h-audit" style="margin-top:var(--s-6)">
+    <h2 id="h-audit">Ledger entries</h2>
+
+    <form class="filters" id="audit-filters" style="margin-top:var(--s-4)">
+      <div class="field">
+        <label for="audit-filter-action">Action</label>
+        <select id="audit-filter-action" name="action" data-testid="audit-filter-action">
+          <option value="">Any action</option>
+          <option value="TRANSFER_COMPLETED">TRANSFER_COMPLETED</option>
+          <option value="TRANSFER_FAILED">TRANSFER_FAILED</option>
+          <option value="ACCOUNT_OPENED">ACCOUNT_OPENED</option>
+          <option value="BENEFICIARY_ADDED">BENEFICIARY_ADDED</option>
+          <option value="BENEFICIARY_REMOVED">BENEFICIARY_REMOVED</option>
+          <option value="LOAN_APPLIED">LOAN_APPLIED</option>
+          <option value="LOAN_UNDER_REVIEW">LOAN_UNDER_REVIEW</option>
+          <option value="LOAN_APPROVED">LOAN_APPROVED</option>
+          <option value="LOAN_REJECTED">LOAN_REJECTED</option>
+          <option value="LOAN_DISBURSED">LOAN_DISBURSED</option>
+          <option value="KYC_VERIFIED">KYC_VERIFIED</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="audit-filter-entity-type">Entity type</label>
+        <select id="audit-filter-entity-type" name="entity_type" data-testid="audit-filter-entity-type">
+          <option value="">Any entity</option>
+          <option value="TRANSFER">TRANSFER</option>
+          <option value="LOAN">LOAN</option>
+          <option value="ACCOUNT">ACCOUNT</option>
+          <option value="BENEFICIARY">BENEFICIARY</option>
+          <option value="CUSTOMER">CUSTOMER</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="audit-filter-actor">Actor</label>
+        <select id="audit-filter-actor" name="actor_id" data-testid="audit-filter-actor">
+          <option value="">Any actor</option>
+          <option value="3f2a9c10">Amara Okonjo (CUSTOMER)</option>
+          <option value="6b7c8d9e">Kofi Mensah (CUSTOMER)</option>
+          <option value="0a0a0a0a">Ravi Deshmukh (ADMIN)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="audit-filter-from">Occurred from</label>
+        <input type="date" id="audit-filter-from" name="occurred_from" data-testid="audit-filter-from" value="">
+      </div>
+      <div class="field">
+        <label for="audit-filter-to">Occurred to</label>
+        <input type="date" id="audit-filter-to" name="occurred_to" data-testid="audit-filter-to" value="">
+      </div>
+      <div class="acts">
+        <button type="submit" class="btn btn--primary" data-testid="audit-filter-apply">Apply filters</button>
+        <button type="button" class="btn" id="audit-filter-reset" data-testid="audit-filter-reset">Reset</button>
+        <p class="small muted" style="margin:0;align-self:center">
+          <code class="api">GET /api/v1/admin/audit</code></p>
+      </div>
+    </form>
+
+    <p id="audit-query" class="small muted" data-testid="audit-query-echo" aria-live="polite"
+       style="margin:var(--s-3) 0 var(--s-4)"></p>
+
+    <div class="tbl-wrap" id="audit-wrap">
+      <table class="tbl" data-testid="audit-table">
+        <caption>Append-only audit entries, most recent first</caption>
+        <thead>
+          <tr>
+            <th scope="col">Occurred</th>
+            <th scope="col">Actor</th>
+            <th scope="col">Action</th>
+            <th scope="col">Entity type</th>
+            <th scope="col">Entity reference</th>
+            <th scope="col">Correlation</th>
+            <th scope="col">Metadata</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body"></tbody>
+      </table>
+      <div class="pager">
+        <p id="audit-count"></p>
+        <div class="row">
+          <button type="button" class="btn btn--sm" id="audit-pagination-prev" data-testid="audit-pagination-prev">Previous</button>
+          <button type="button" class="btn btn--sm" id="audit-pagination-next" data-testid="audit-pagination-next">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="audit-empty" class="hidden" style="margin-top:var(--s-4)">
+      <div class="empty" data-testid="audit-empty-state">
+        <h3>No entries match those filters</h3>
+        <p>The ledger is not empty &mdash; this combination of action, entity type, actor and date range simply returns
+          nothing. Widen the range or reset the filters.</p>
+        <button type="button" class="btn" data-testid="audit-empty-reset">Reset filters</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ NOTIFICATIONS ============================ -->
+  <section aria-labelledby="h-notif" style="margin-top:var(--s-8)">
+    <p class="eyebrow">AC-10</p>
+    <h2 id="h-notif">Notification log</h2>
+    <p class="lede">Notifications are enqueued inside the business transaction and dispatched outside it. A dispatch
+      failure marks the notification <span class="badge b-danger">FAILED</span> and never rolls back the money movement
+      that produced it.</p>
+
+    <div class="row" style="margin-top:var(--s-4);gap:var(--s-4);align-items:flex-end">
+      <div class="field" style="margin:0;min-width:14rem">
+        <label for="notification-filter-status">Delivery status</label>
+        <select id="notification-filter-status" data-testid="notification-filter-status">
+          <option value="">All statuses</option>
+          <option value="QUEUED">QUEUED</option>
+          <option value="SENT">SENT</option>
+          <option value="FAILED">FAILED</option>
+        </select>
+      </div>
+      <div class="field" style="margin:0;min-width:12rem">
+        <label for="notification-filter-channel">Channel</label>
+        <select id="notification-filter-channel" data-testid="notification-filter-channel">
+          <option value="">All channels</option>
+          <option value="EMAIL">EMAIL</option>
+          <option value="SMS">SMS</option>
+        </select>
+      </div>
+      <p class="small muted" style="margin:0"><code class="api">GET /api/v1/admin/notifications</code></p>
+    </div>
+
+    <div class="tbl-wrap" id="notification-wrap" style="margin-top:var(--s-4)">
+      <table class="tbl" data-testid="notification-table">
+        <caption>Dispatched notifications, most recent first</caption>
+        <thead>
+          <tr>
+            <th scope="col">Created</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Channel</th>
+            <th scope="col">Event type</th>
+            <th scope="col">Message</th>
+            <th scope="col">Status</th>
+            <th scope="col">Sent</th>
+          </tr>
+        </thead>
+        <tbody id="notification-body"></tbody>
+      </table>
+      <div class="pager"><p id="notification-count"></p></div>
+    </div>
+
+    <div id="notification-empty" class="hidden" style="margin-top:var(--s-4)">
+      <div class="empty" data-testid="notifications-empty-state">
+        <h3>No notifications in that combination</h3>
+        <p>Nothing has been queued, sent or failed for the selected status and channel.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; E7-S2 audit and notification mockup &middot; synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Tokens from <a href="E6-S1.html">E6-S1</a>. Next: <a href="E7-S3.html">E7-S3 conformance</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  function stamp(iso) { return iso.replace('T', ' ').replace('Z', ''); }
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+
+  var ACTORS = {
+    '3f2a9c10': { name: 'Amara Okonjo', role: 'CUSTOMER' },
+    '6b7c8d9e': { name: 'Kofi Mensah', role: 'CUSTOMER' },
+    '0a0a0a0a': { name: 'Ravi Deshmukh', role: 'ADMIN' }
+  };
+  var ACTION_BADGE = {
+    TRANSFER_COMPLETED: 'b-ok', TRANSFER_FAILED: 'b-danger', ACCOUNT_OPENED: 'b-neutral',
+    BENEFICIARY_ADDED: 'b-neutral', BENEFICIARY_REMOVED: 'b-neutral', LOAN_APPLIED: 'b-info',
+    LOAN_UNDER_REVIEW: 'b-warn', LOAN_APPROVED: 'b-ok', LOAN_REJECTED: 'b-danger',
+    LOAN_DISBURSED: 'b-info', KYC_VERIFIED: 'b-ok'
+  };
+
+  var AUDIT = [
+    { id: '11112222', occurred_at: '2026-08-19T11:02:44Z', actor_id: '3f2a9c10', actor_role: 'CUSTOMER',
+      action: 'TRANSFER_COMPLETED', entity_type: 'TRANSFER', entity_id: '5a6b7c8d', correlation_id: '01J8ZQK7M2C4X9N0RT5VB3DHYE',
+      metadata_json: { amount: '250.00', source_account_number: 'HZN0000000101', destination_account_number: 'HZN0000000202' } },
+    { id: '11112223', occurred_at: '2026-08-19T10:58:02Z', actor_id: '6b7c8d9e', actor_role: 'CUSTOMER',
+      action: 'TRANSFER_FAILED', entity_type: 'TRANSFER', entity_id: '6b7c8d9e', correlation_id: '01J8ZQJ1B9V6T3Q7Y2K5M8N4PX',
+      metadata_json: { amount: '9000.00', failure_code: 'INSUFFICIENT_FUNDS', source_account_number: 'HZN0000000202' } },
+    { id: '11112224', occurred_at: '2026-08-19T07:30:00Z', actor_id: '3f2a9c10', actor_role: 'CUSTOMER',
+      action: 'LOAN_APPLIED', entity_type: 'LOAN', entity_id: 'a7b8c9d0', correlation_id: '01J8ZQH4T6R9W2E5Y8U1I3O7QA',
+      metadata_json: { principal: '18500.50', tenure_months: 6, purpose: 'Dental treatment not covered by insurance' } },
+    { id: '22223333', occurred_at: '2026-08-18T16:20:10Z', actor_id: '0a0a0a0a', actor_role: 'ADMIN',
+      action: 'LOAN_DISBURSED', entity_type: 'LOAN', entity_id: 'aa11bb22', correlation_id: '01J8ZQM4N7P2R5T8W1Y3B6D9F2',
+      metadata_json: { from_status: 'APPROVED', to_status: 'DISBURSED', principal: '250000.00', disbursement_account_number: 'HZN0000000101' } },
+    { id: '22223334', occurred_at: '2026-08-18T09:12:30Z', actor_id: '0a0a0a0a', actor_role: 'ADMIN',
+      action: 'LOAN_UNDER_REVIEW', entity_type: 'LOAN', entity_id: 'f6a7b8c9', correlation_id: '01J8ZQN8K3L6P9S2V5X8A1D4G7',
+      metadata_json: { from_status: 'APPLIED', to_status: 'UNDER_REVIEW', reason: null } },
+    { id: '22223335', occurred_at: '2026-08-16T14:31:09Z', actor_id: '0a0a0a0a', actor_role: 'ADMIN',
+      action: 'LOAN_APPROVED', entity_type: 'LOAN', entity_id: 'aa11bb22', correlation_id: '01J8ZQP2M5Q8T1W4Z7C0F3H6K9',
+      metadata_json: { from_status: 'UNDER_REVIEW', to_status: 'APPROVED', reason: 'Documentation complete and consistent with the stated purpose.' } },
+    { id: '33334444', occurred_at: '2026-08-09T11:40:52Z', actor_id: '0a0a0a0a', actor_role: 'ADMIN',
+      action: 'LOAN_REJECTED', entity_type: 'LOAN', entity_id: 'e5f6a7b8', correlation_id: '01J8ZQR6N9S2V5Y8B1E4H7K0M3',
+      metadata_json: { from_status: 'UNDER_REVIEW', to_status: 'REJECTED', reason: 'Insufficient documentation — the supporting invoice was not attached to the application.' } },
+    { id: '44445555', occurred_at: '2026-07-28T18:12:41Z', actor_id: '3f2a9c10', actor_role: 'CUSTOMER',
+      action: 'BENEFICIARY_ADDED', entity_type: 'BENEFICIARY', entity_id: 'd4e5f6a7', correlation_id: '01J8ZQS0P3T6W9Z2D5G8J1L4N7',
+      metadata_json: { nickname: 'Neelam — savings pool', beneficiary_account_number: 'HZN0000000305' } },
+    { id: '44445556', occurred_at: '2026-07-22T14:03:18Z', actor_id: '6b7c8d9e', actor_role: 'CUSTOMER',
+      action: 'BENEFICIARY_REMOVED', entity_type: 'BENEFICIARY', entity_id: 'c3d4e5f6', correlation_id: '01J8ZQT4R7V0Y3B6E9H2K5N8Q1',
+      metadata_json: { soft_delete: true, deleted_at: '2026-07-22T14:03:18Z' } },
+    { id: '55556666', occurred_at: '2026-07-05T09:10:02Z', actor_id: '3f2a9c10', actor_role: 'CUSTOMER',
+      action: 'ACCOUNT_OPENED', entity_type: 'ACCOUNT', entity_id: '7b1f0b0e', correlation_id: '01J8ZQV8S1W4Z7C0F3J6M9P2T5',
+      metadata_json: { account_number: 'HZN0000000101', opening_balance: '0.00', currency: 'INR' } },
+    { id: '66667777', occurred_at: '2026-07-05T09:04:40Z', actor_id: '3f2a9c10', actor_role: 'CUSTOMER',
+      action: 'KYC_VERIFIED', entity_type: 'CUSTOMER', entity_id: '3f2a9c10', correlation_id: '01J8ZQW2T5X8A1E4H7L0N3Q6U9',
+      metadata_json: { kyc_status: 'VERIFIED', document_type: 'PASSPORT', document_number: '[REDACTED]' } }
+  ];
+
+  var SIZE = 8, page = 1, filtered = AUDIT.slice();
+
+  function readFilters() {
+    return {
+      action: $('audit-filter-action').value,
+      entity_type: $('audit-filter-entity-type').value,
+      actor_id: $('audit-filter-actor').value,
+      occurred_from: $('audit-filter-from').value,
+      occurred_to: $('audit-filter-to').value
+    };
+  }
+
+  function applyFilters() {
+    var f = readFilters();
+    filtered = AUDIT.filter(function (e) {
+      if (f.action && e.action !== f.action) { return false; }
+      if (f.entity_type && e.entity_type !== f.entity_type) { return false; }
+      if (f.actor_id && e.actor_id !== f.actor_id) { return false; }
+      var day = e.occurred_at.slice(0, 10);
+      if (f.occurred_from && day < f.occurred_from) { return false; }
+      if (f.occurred_to && day > f.occurred_to) { return false; }
+      return true;
+    });
+    page = 1;
+
+    var qs = Object.keys(f).filter(function (k) { return f[k]; })
+      .map(function (k) { return k + '=' + f[k]; }).concat(['page=1', 'size=' + SIZE]).join('&');
+    $('audit-query').innerHTML = 'Request: <code class="mono">GET /api/v1/admin/audit?' + qs + '</code>';
+    renderAudit();
+  }
+
+  function renderAudit() {
+    var pages = Math.max(1, Math.ceil(filtered.length / SIZE));
+    var start = (page - 1) * SIZE, slice = filtered.slice(start, start + SIZE);
+    $('audit-empty').classList.toggle('hidden', filtered.length > 0);
+    $('audit-wrap').classList.toggle('hidden', filtered.length === 0);
+
+    $('audit-body').innerHTML = slice.map(function (e) {
+      var a = ACTORS[e.actor_id] || { name: 'Unknown', role: e.actor_role };
+      return '<tr data-testid="audit-row" data-audit-id="' + e.id + '">' +
+        '<td data-label="Occurred" class="ts">' + stamp(e.occurred_at) + '</td>' +
+        '<td data-label="Actor">' + a.name + '<br><span class="badge ' +
+          (a.role === 'ADMIN' ? 'b-accent' : 'b-neutral') + '">' + a.role + '</span></td>' +
+        '<td data-label="Action"><span class="badge ' + (ACTION_BADGE[e.action] || 'b-neutral') + '">' + e.action + '</span></td>' +
+        '<td data-label="Entity type" class="mono">' + e.entity_type + '</td>' +
+        '<td data-label="Entity reference" class="mono">' + e.entity_id + '</td>' +
+        '<td data-label="Correlation" class="mono small">' + e.correlation_id + '</td>' +
+        '<td data-label="Metadata"><details class="meta"><summary>metadata_json</summary><pre>' +
+          esc(JSON.stringify(e.metadata_json, null, 2)) + '</pre></details></td>' +
+      '</tr>';
+    }).join('');
+
+    $('audit-count').textContent = filtered.length
+      ? 'Showing ' + (start + 1) + '–' + (start + slice.length) + ' of ' + filtered.length +
+        ' · page ' + page + ' of ' + pages + ' · size ' + SIZE
+      : 'No entries';
+    $('audit-pagination-prev').disabled = page === 1;
+    $('audit-pagination-next').disabled = page >= pages;
+  }
+
+  $('audit-filters').addEventListener('submit', function (e) { e.preventDefault(); applyFilters(); });
+  $('audit-pagination-prev').addEventListener('click', function () { if (page > 1) { page--; renderAudit(); } });
+  $('audit-pagination-next').addEventListener('click', function () {
+    if (page < Math.ceil(filtered.length / SIZE)) { page++; renderAudit(); }
+  });
+  function resetFilters() {
+    $('audit-filter-action').value = ''; $('audit-filter-entity-type').value = '';
+    $('audit-filter-actor').value = ''; $('audit-filter-from').value = ''; $('audit-filter-to').value = '';
+    applyFilters();
+  }
+  $('audit-filter-reset').addEventListener('click', resetFilters);
+  document.querySelector('[data-testid="audit-empty-reset"]').addEventListener('click', resetFilters);
+  applyFilters();
+
+  /* ------------------------------ notifications ------------------------------ */
+  var NOTIFS = [
+    { id: '33334444', customer_id: '3f2a9c10', customer_name: 'Amara Okonjo', channel: 'EMAIL',
+      event_type: 'TRANSFER_COMPLETED', payload: 'You sent 250.00 INR to account ending 0202.', status: 'SENT',
+      failure_reason: null, created_at: '2026-08-19T11:02:44Z', sent_at: '2026-08-19T11:02:44Z' },
+    { id: '33334445', customer_id: '6b7c8d9e', customer_name: 'Kofi Mensah', channel: 'SMS',
+      event_type: 'TRANSFER_FAILED', payload: 'A transfer of 9,000.00 INR was declined: insufficient funds.',
+      status: 'QUEUED', failure_reason: null, created_at: '2026-08-19T10:58:02Z', sent_at: null },
+    { id: '44445555', customer_id: '3f2a9c10', customer_name: 'Amara Okonjo', channel: 'EMAIL',
+      event_type: 'LOAN_APPLIED', payload: 'We have received your loan application for 18,500.50 INR.',
+      status: 'SENT', failure_reason: null, created_at: '2026-08-19T07:30:00Z', sent_at: '2026-08-19T07:30:03Z' },
+    { id: '55556666', customer_id: '3f2a9c10', customer_name: 'Amara Okonjo', channel: 'SMS',
+      event_type: 'LOAN_APPROVED', payload: 'Your loan application has been approved.', status: 'FAILED',
+      failure_reason: 'Stub dispatcher returned a simulated gateway error. The approval itself is unaffected.',
+      created_at: '2026-08-16T14:31:09Z', sent_at: null },
+    { id: '66667777', customer_id: '3f2a9c10', customer_name: 'Amara Okonjo', channel: 'EMAIL',
+      event_type: 'LOAN_DISBURSED', payload: '250,000.00 INR has been credited to account ending 0101.',
+      status: 'SENT', failure_reason: null, created_at: '2026-08-18T16:20:10Z', sent_at: '2026-08-18T16:20:12Z' },
+    { id: '77778888', customer_id: '6b7c8d9e', customer_name: 'Kofi Mensah', channel: 'EMAIL',
+      event_type: 'LOAN_REJECTED', payload: 'A decision has been recorded on your loan application.',
+      status: 'SENT', failure_reason: null, created_at: '2026-08-09T11:40:52Z', sent_at: '2026-08-09T11:40:54Z' }
+  ];
+  var NBADGE = { QUEUED: 'b-warn', SENT: 'b-ok', FAILED: 'b-danger' };
+
+  function renderNotifs() {
+    var s = $('notification-filter-status').value, c = $('notification-filter-channel').value;
+    var rows = NOTIFS.filter(function (n) {
+      return (!s || n.status === s) && (!c || n.channel === c);
+    });
+    $('notification-empty').classList.toggle('hidden', rows.length > 0);
+    $('notification-wrap').classList.toggle('hidden', rows.length === 0);
+    $('notification-body').innerHTML = rows.map(function (n) {
+      return '<tr data-testid="notification-row" data-notification-id="' + n.id + '">' +
+        '<td data-label="Created" class="ts">' + stamp(n.created_at) + '</td>' +
+        '<td data-label="Customer">' + n.customer_name + '</td>' +
+        '<td data-label="Channel"><span class="badge b-neutral">' + n.channel + '</span></td>' +
+        '<td data-label="Event type" class="mono">' + n.event_type + '</td>' +
+        '<td data-label="Message">' + n.payload +
+          (n.failure_reason ? '<br><span class="small" style="color:var(--danger-700);font-weight:700">' +
+            n.failure_reason + '</span>' : '') + '</td>' +
+        '<td data-label="Status"><span class="badge ' + NBADGE[n.status] + '" data-testid="notification-status-badge">' +
+          n.status + '</span></td>' +
+        '<td data-label="Sent" class="ts">' + (n.sent_at ? stamp(n.sent_at) : '—') + '</td>' +
+      '</tr>';
+    }).join('');
+    $('notification-count').textContent = 'Showing ' + rows.length + ' of ' + NOTIFS.length +
+      ' notifications · page 1 of 1 · size 20';
+  }
+  $('notification-filter-status').addEventListener('change', renderNotifs);
+  $('notification-filter-channel').addEventListener('change', renderNotifs);
+  renderNotifs();
+})();
+</script>
+</body>
+</html>

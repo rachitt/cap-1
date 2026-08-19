@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E9-S1 Evaluator UI Verification Map</title>
+<!--
+  E9-S1 — NOT a product screen. This is the Playwright MCP verification surface: the registry of
+  data-testid selectors each screen exposes, mapped to the acceptance criteria and feature IDs they
+  verify, plus the snapshot and axe targets. Every value listed here is used verbatim in the other
+  eight mockups, so the mockups are machine-checkable before any production code exists.
+  Synthetic data only.
+-->
+<style>
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
+:root{
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
+
+/* page-specific: verification map */
+.mapfilters{display:flex;flex-wrap:wrap;gap:var(--s-4);align-items:flex-end;padding:var(--s-4) var(--s-5);
+ background:var(--surface);border:1px solid var(--ink-200);border-left:4px solid var(--ink-900);border-radius:var(--r-2)}
+.mapfilters .field{margin:0;min-width:14rem;flex:1}
+.sel{font-family:var(--f-money);font-size:var(--t-13);color:var(--accent-700);background:var(--accent-050);
+ border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;display:inline-block;word-break:break-all}
+.reg{columns:1;column-gap:var(--s-5)}
+@media(min-width:700px){.reg{columns:2}}
+@media(min-width:1100px){.reg{columns:3}}
+.reg section{break-inside:avoid;margin:0 0 var(--s-5)}
+.reg ul{list-style:none;margin:var(--s-2) 0 0;padding:0}
+.reg li{padding:3px 0;border-bottom:1px solid var(--ink-100)}
+.snap{display:grid;gap:var(--s-3);grid-template-columns:1fr}
+@media(min-width:768px){.snap{grid-template-columns:repeat(3,1fr)}}
+.snapbox{border:1px solid var(--ink-200);border-top:3px solid var(--ink-900);border-radius:var(--r-2);
+ background:var(--surface);padding:var(--s-4)}
+</style>
+</head>
+<body>
+
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Verify</em></a>
+    <p class="who" style="margin:0">Evaluator surface &middot; Playwright MCP</p>
+  </div>
+</header>
+
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html" aria-current="page">E9-S1 Verification map</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap" id="main" data-testid="app-main">
+  <p class="eyebrow">E9-S1 &middot; evaluator tooling</p>
+  <h1>UI verification map</h1>
+  <p class="lede">This page is not a product screen. It is the contract between the mockups and the Playwright MCP
+    suite: which selector on which screen proves which acceptance criterion. Every <code class="mono">data-testid</code>
+    below appears verbatim in the mockup it names, so a verification run can be written against the mockups today and
+    re-pointed at the running application unchanged.</p>
+
+  <div class="alert a-info" role="note" style="margin-top:var(--s-5)">
+    <h3>Selector policy</h3>
+    <p>Prefer the accessible query first &mdash; role and accessible name &mdash; because it verifies the semantics a
+      real user depends on. Fall back to <code class="mono">data-testid</code> only where the accessible name is
+      ambiguous across repeated rows, or where the element is a container rather than a control. Never select on a CSS
+      class or a DOM path: both are styling concerns and will churn.</p>
+  </div>
+
+  <!-- ============================ THE MAP ============================ -->
+  <section aria-labelledby="h-map" style="margin-top:var(--s-6)">
+    <p class="eyebrow">01 &middot; Selector to acceptance criterion</p>
+    <h2 id="h-map">Verification map</h2>
+
+    <form class="mapfilters" id="map-filters" style="margin-top:var(--s-4)">
+      <div class="field">
+        <label for="map-filter-screen">Screen</label>
+        <select id="map-filter-screen" data-testid="map-filter-screen">
+          <option value="">All screens</option>
+          <option value="E6-S2">E6-S2 Onboarding</option>
+          <option value="E6-S3">E6-S3 Accounts</option>
+          <option value="E6-S4">E6-S4 Transfer</option>
+          <option value="E6-S5">E6-S5 Loans</option>
+          <option value="E7-S1">E7-S1 Loan queue</option>
+          <option value="E7-S2">E7-S2 Audit &amp; notifications</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="map-filter-search">Find a selector or criterion</label>
+        <input type="search" id="map-filter-search" data-testid="map-filter-search" placeholder="e.g. transfer, AC-05, 422">
+      </div>
+      <p class="small muted" style="margin:0;align-self:center" id="map-count" aria-live="polite"></p>
+    </form>
+
+    <div class="tbl-wrap" id="map-wrap" style="margin-top:var(--s-4)">
+      <table class="tbl" data-testid="verification-map-table">
+        <caption>Playwright MCP verification targets</caption>
+        <thead>
+          <tr>
+            <th scope="col">Screen</th>
+            <th scope="col">Selector</th>
+            <th scope="col">Element</th>
+            <th scope="col">What the run asserts</th>
+            <th scope="col">Verifies</th>
+          </tr>
+        </thead>
+        <tbody id="map-body"></tbody>
+      </table>
+      <div class="pager"><p id="map-pager"></p></div>
+    </div>
+
+    <div id="map-empty" class="hidden" style="margin-top:var(--s-4)">
+      <div class="empty" data-testid="verification-map-empty-state">
+        <h3>No verification target matches</h3>
+        <p>No selector on the selected screen matches that search. Clear the search to see the full map.</p>
+        <button type="button" class="btn" id="map-reset">Clear filters</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ REGISTRY ============================ -->
+  <section aria-labelledby="h-registry" style="margin-top:var(--s-8)">
+    <p class="eyebrow">02 &middot; Registry</p>
+    <h2 id="h-registry">Every <code class="mono">data-testid</code> in the pack</h2>
+    <p class="lede">Naming convention: <code class="mono">&lt;surface&gt;-&lt;thing&gt;[-&lt;qualifier&gt;]</code>,
+      lowercase kebab-case, singular for a single element and singular-with-repetition for a row
+      (<code class="mono">statement-row</code> appears once per row). Error selectors are named for the
+      <code class="mono">error.code</code> they surface, not for the copy.</p>
+
+    <div class="reg" style="margin-top:var(--s-5)" data-testid="testid-registry">
+      <section><h3 style="font-size:var(--t-18)">Shell &mdash; every screen</h3><ul>
+        <li><span class="sel">app-header</span></li><li><span class="sel">app-nav</span></li>
+        <li><span class="sel">app-main</span></li><li><span class="sel">app-footer</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E6-S2 Onboarding</h3><ul>
+        <li><span class="sel">onboarding-tabs</span></li>
+        <li><span class="sel">register-form</span></li><li><span class="sel">register-email</span></li>
+        <li><span class="sel">register-password</span></li><li><span class="sel">register-full-name</span></li>
+        <li><span class="sel">register-date-of-birth</span></li><li><span class="sel">register-phone</span></li>
+        <li><span class="sel">register-submit</span></li><li><span class="sel">register-error-email</span></li>
+        <li><span class="sel">register-success</span></li><li><span class="sel">register-goto-kyc</span></li>
+        <li><span class="sel">register-live-region</span></li>
+        <li><span class="sel">kyc-form</span></li><li><span class="sel">kyc-email</span></li>
+        <li><span class="sel">kyc-document-type</span></li><li><span class="sel">kyc-document-number</span></li>
+        <li><span class="sel">kyc-submit</span></li><li><span class="sel">kyc-result-verified</span></li>
+        <li><span class="sel">kyc-result-rejected</span></li><li><span class="sel">kyc-stub-reason</span></li>
+        <li><span class="sel">kyc-goto-login</span></li><li><span class="sel">kyc-error-already-submitted</span></li>
+        <li><span class="sel">kyc-live-region</span></li>
+        <li><span class="sel">login-form</span></li><li><span class="sel">login-email</span></li>
+        <li><span class="sel">login-password</span></li><li><span class="sel">login-submit</span></li>
+        <li><span class="sel">login-success</span></li>
+        <li><span class="sel">login-error-invalid-credentials</span></li>
+        <li><span class="sel">login-error-pending-kyc</span></li>
+        <li><span class="sel">login-goto-dashboard</span></li><li><span class="sel">login-live-region</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E6-S3 Accounts</h3><ul>
+        <li><span class="sel">dashboard-accounts</span></li><li><span class="sel">account-card</span></li>
+        <li><span class="sel">account-card-number</span></li><li><span class="sel">account-balance</span></li>
+        <li><span class="sel">open-account-button</span></li>
+        <li><span class="sel">open-account-button-empty</span></li>
+        <li><span class="sel">accounts-empty-state</span></li>
+        <li><span class="sel">dashboard-live-region</span></li>
+        <li><span class="sel">account-detail</span></li><li><span class="sel">account-detail-balance</span></li>
+        <li><span class="sel">account-detail-number</span></li>
+        <li><span class="sel">statement-table</span></li><li><span class="sel">statement-row</span></li>
+        <li><span class="sel">statement-direction</span></li><li><span class="sel">statement-amount</span></li>
+        <li><span class="sel">statement-balance-after</span></li>
+        <li><span class="sel">statement-empty-state</span></li>
+        <li><span class="sel">pagination-prev</span></li><li><span class="sel">pagination-next</span></li>
+        <li><span class="sel">pagination-status</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E6-S4 Transfer &amp; payees</h3><ul>
+        <li><span class="sel">transfer-form</span></li>
+        <li><span class="sel">transfer-source-account</span></li>
+        <li><span class="sel">transfer-source-balance</span></li>
+        <li><span class="sel">transfer-destination-account-number</span></li>
+        <li><span class="sel">transfer-beneficiary-shortcut</span></li>
+        <li><span class="sel">transfer-no-beneficiaries-note</span></li>
+        <li><span class="sel">transfer-amount</span></li><li><span class="sel">transfer-description</span></li>
+        <li><span class="sel">transfer-review-button</span></li>
+        <li><span class="sel">transfer-confirm-panel</span></li>
+        <li><span class="sel">transfer-confirm-amount</span></li>
+        <li><span class="sel">transfer-confirm-destination</span></li>
+        <li><span class="sel">transfer-confirm-button</span></li>
+        <li><span class="sel">transfer-back-button</span></li>
+        <li><span class="sel">transfer-success</span></li>
+        <li><span class="sel">transfer-error-insufficient-funds</span></li>
+        <li><span class="sel">transfer-error-account-not-found</span></li>
+        <li><span class="sel">transfer-error-inactive-account</span></li>
+        <li><span class="sel">transfer-error-amount</span></li>
+        <li><span class="sel">transfer-error-destination</span></li>
+        <li><span class="sel">transfer-live-region</span></li>
+        <li><span class="sel">beneficiary-list</span></li><li><span class="sel">beneficiary-row</span></li>
+        <li><span class="sel">beneficiary-add-form</span></li><li><span class="sel">beneficiary-nickname</span></li>
+        <li><span class="sel">beneficiary-account-number</span></li><li><span class="sel">beneficiary-name</span></li>
+        <li><span class="sel">beneficiary-add-submit</span></li>
+        <li><span class="sel">beneficiary-remove-button</span></li>
+        <li><span class="sel">beneficiary-error</span></li>
+        <li><span class="sel">beneficiaries-empty-state</span></li>
+        <li><span class="sel">beneficiary-live-region</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E6-S5 Loans</h3><ul>
+        <li><span class="sel">loan-application-form</span></li><li><span class="sel">loan-principal</span></li>
+        <li><span class="sel">loan-tenure-months</span></li><li><span class="sel">loan-purpose</span></li>
+        <li><span class="sel">loan-declared-monthly-income</span></li><li><span class="sel">loan-submit</span></li>
+        <li><span class="sel">loan-submit-success</span></li>
+        <li><span class="sel">loan-error-principal</span></li><li><span class="sel">loan-error-tenure</span></li>
+        <li><span class="sel">loan-error-purpose</span></li>
+        <li><span class="sel">loan-list</span></li><li><span class="sel">loan-row</span></li>
+        <li><span class="sel">loan-status-badge</span></li><li><span class="sel">loan-detail-principal</span></li>
+        <li><span class="sel">loan-timeline</span></li><li><span class="sel">loan-timeline-entry</span></li>
+        <li><span class="sel">loan-timeline-actor</span></li><li><span class="sel">loan-timeline-reason</span></li>
+        <li><span class="sel">loan-timeline-timestamp</span></li>
+        <li><span class="sel">loan-rejection-notice</span></li><li><span class="sel">loan-rejection-reason</span></li>
+        <li><span class="sel">loan-disbursement-notice</span></li>
+        <li><span class="sel">loans-empty-state</span></li><li><span class="sel">loans-empty-apply-button</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E7-S1 Loan queue</h3><ul>
+        <li><span class="sel">loan-queue-table</span></li><li><span class="sel">loan-queue-row</span></li>
+        <li><span class="sel">loan-queue-principal</span></li><li><span class="sel">loan-queue-status</span></li>
+        <li><span class="sel">loan-queue-filter-status</span></li>
+        <li><span class="sel">loan-queue-empty-state</span></li>
+        <li><span class="sel">loan-queue-live-region</span></li>
+        <li><span class="sel">loan-queue-prev</span></li><li><span class="sel">loan-queue-next</span></li>
+        <li><span class="sel">loan-detail-panel</span></li>
+        <li><span class="sel">loan-action-review</span></li><li><span class="sel">loan-action-approve</span></li>
+        <li><span class="sel">loan-action-reject</span></li><li><span class="sel">loan-action-disburse</span></li>
+        <li><span class="sel">loan-action-illegal</span></li>
+        <li><span class="sel">decision-dialog</span></li><li><span class="sel">decision-reason</span></li>
+        <li><span class="sel">decision-submit</span></li><li><span class="sel">decision-cancel</span></li>
+        <li><span class="sel">decision-error-reason-required</span></li>
+        <li><span class="sel">decision-error-illegal-transition</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E7-S2 Audit &amp; notifications</h3><ul>
+        <li><span class="sel">audit-table</span></li><li><span class="sel">audit-row</span></li>
+        <li><span class="sel">audit-readonly-notice</span></li>
+        <li><span class="sel">audit-filter-action</span></li><li><span class="sel">audit-filter-entity-type</span></li>
+        <li><span class="sel">audit-filter-actor</span></li><li><span class="sel">audit-filter-from</span></li>
+        <li><span class="sel">audit-filter-to</span></li><li><span class="sel">audit-filter-apply</span></li>
+        <li><span class="sel">audit-filter-reset</span></li><li><span class="sel">audit-query-echo</span></li>
+        <li><span class="sel">audit-pagination-prev</span></li><li><span class="sel">audit-pagination-next</span></li>
+        <li><span class="sel">audit-empty-state</span></li><li><span class="sel">audit-empty-reset</span></li>
+        <li><span class="sel">notification-table</span></li><li><span class="sel">notification-row</span></li>
+        <li><span class="sel">notification-status-badge</span></li>
+        <li><span class="sel">notification-filter-status</span></li>
+        <li><span class="sel">notification-filter-channel</span></li>
+        <li><span class="sel">notifications-empty-state</span></li>
+      </ul></section>
+
+      <section><h3 style="font-size:var(--t-18)">E7-S3 &amp; E9-S1 (spec surfaces)</h3><ul>
+        <li><span class="sel">viewport-frame-375</span></li><li><span class="sel">viewport-frame-768</span></li>
+        <li><span class="sel">viewport-frame-1440</span></li>
+        <li><span class="sel">a11y-checklist</span></li><li><span class="sel">contrast-table</span></li>
+        <li><span class="sel">contrast-row</span></li>
+        <li><span class="sel">keyboard-walkthrough-transfer</span></li>
+        <li><span class="sel">keyboard-walkthrough-loan-review</span></li>
+        <li><span class="sel">live-region-inventory</span></li>
+        <li><span class="sel">verification-map-table</span></li><li><span class="sel">verification-map-row</span></li>
+        <li><span class="sel">testid-registry</span></li>
+        <li><span class="sel">snapshot-targets</span></li><li><span class="sel">axe-targets</span></li>
+      </ul></section>
+    </div>
+  </section>
+
+  <!-- ============================ SNAPSHOTS ============================ -->
+  <section aria-labelledby="h-snap" style="margin-top:var(--s-8)">
+    <p class="eyebrow">03 &middot; Snapshots &amp; axe</p>
+    <h2 id="h-snap">Capture targets</h2>
+    <p class="lede">Every screen is captured at all three breakpoints and scanned by axe at the outer two. Snapshot
+      stability requires deterministic seed data, so the fixtures fix every timestamp and identifier.</p>
+
+    <div class="snap" style="margin-top:var(--s-4)" data-testid="snapshot-targets">
+      <div class="snapbox" data-testid="viewport-frame-375">
+        <p class="eyebrow" style="color:var(--ink-600)">375 &times; 812</p>
+        <h3 style="font-size:var(--t-18)">Mobile</h3>
+        <p class="small muted">Customer journeys are the target. Tables must be stacked cards; document.scrollWidth
+          must not exceed 375.</p>
+        <p class="spec small mono">e2e/snapshots/375/&lt;screen&gt;.png</p>
+      </div>
+      <div class="snapbox" data-testid="viewport-frame-768">
+        <p class="eyebrow" style="color:var(--ink-600)">768 &times; 1024</p>
+        <h3 style="font-size:var(--t-18)">Tablet</h3>
+        <p class="small muted">Two-column grids engage; tables become real tables.</p>
+        <p class="spec small mono">e2e/snapshots/768/&lt;screen&gt;.png</p>
+      </div>
+      <div class="snapbox" data-testid="viewport-frame-1440">
+        <p class="eyebrow" style="color:var(--ink-600)">1440 &times; 900</p>
+        <h3 style="font-size:var(--t-18)">Desktop</h3>
+        <p class="small muted">Admin queue and audit ledger are the target. All column headers visible without
+          horizontal scroll; row actions unclipped.</p>
+        <p class="spec small mono">e2e/snapshots/1440/&lt;screen&gt;.png</p>
+      </div>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:var(--s-5)" data-testid="axe-targets">
+      <table class="tbl">
+        <caption>Automated checks per screen</caption>
+        <thead><tr><th scope="col">Screen</th><th scope="col">Snapshot</th><th scope="col">Axe scan</th>
+          <th scope="col">Keyboard walkthrough</th><th scope="col">Feature</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Screen">E6-S2 Register / KYC / Login</td><td data-label="Snapshot">375, 768, 1440</td>
+            <td data-label="Axe scan">375 &amp; 1440, zero serious or critical</td><td data-label="Keyboard walkthrough">Tab order across the three tabs</td>
+            <td data-label="Feature" class="mono">F217, F249</td></tr>
+          <tr><td data-label="Screen">E6-S3 Dashboard / Account detail</td><td data-label="Snapshot">375, 768, 1440</td>
+            <td data-label="Axe scan">375 &amp; 1440</td><td data-label="Keyboard walkthrough">Pagination reachable by Tab</td>
+            <td data-label="Feature" class="mono">F215, F221, F249</td></tr>
+          <tr><td data-label="Screen">E6-S4 Transfer</td><td data-label="Snapshot">375, 768, 1440</td>
+            <td data-label="Axe scan">375 &amp; 1440</td><td data-label="Keyboard walkthrough"><strong>Full flow, keyboard only</strong></td>
+            <td data-label="Feature" class="mono">F218, F221, F248</td></tr>
+          <tr><td data-label="Screen">E6-S5 Loans</td><td data-label="Snapshot">375, 768, 1440</td>
+            <td data-label="Axe scan">375 &amp; 1440</td><td data-label="Keyboard walkthrough">Form to timeline</td>
+            <td data-label="Feature" class="mono">F217, F249</td></tr>
+          <tr><td data-label="Screen">E7-S1 Loan queue</td><td data-label="Snapshot">375, 768, 1440</td>
+            <td data-label="Axe scan">375 &amp; 1440, dialog focus trap</td><td data-label="Keyboard walkthrough"><strong>Review flow incl. reason field</strong></td>
+            <td data-label="Feature" class="mono">F216, F219</td></tr>
+          <tr><td data-label="Screen">E7-S2 Audit &amp; notifications</td><td data-label="Snapshot">375, 768, 1440</td>
+            <td data-label="Axe scan">375 &amp; 1440</td><td data-label="Keyboard walkthrough">Filters and pagination</td>
+            <td data-label="Feature" class="mono">F216, F217</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ E2E JOURNEYS ============================ -->
+  <section aria-labelledby="h-journeys" style="margin-top:var(--s-8)">
+    <p class="eyebrow">04 &middot; Journeys</p>
+    <h2 id="h-journeys">The money-conservation run</h2>
+    <p class="lede">F248 is the one journey that cannot be faked by a screenshot: the browser must observe that money
+      is conserved across a transfer. It reads both balances from the DOM before and after, using the selectors below.</p>
+
+    <div class="tbl-wrap" style="margin-top:var(--s-4)">
+      <table class="tbl">
+        <caption>F248 — end-to-end transfer asserts money conservation in the browser</caption>
+        <thead><tr><th scope="col">Step</th><th scope="col">Selector</th><th scope="col">Assertion</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Step">1. Sign in as the seeded funded customer</td>
+            <td data-label="Selector"><span class="sel">login-email</span> <span class="sel">login-password</span> <span class="sel">login-submit</span></td>
+            <td data-label="Assertion">Dashboard renders; token stored</td></tr>
+          <tr><td data-label="Step">2. Record both balances</td>
+            <td data-label="Selector"><span class="sel">account-balance</span> (per <span class="sel">account-card</span>)</td>
+            <td data-label="Assertion">Capture the two rendered strings verbatim &mdash; do not parse them into numbers in the assertion helper without a decimal library</td></tr>
+          <tr><td data-label="Step">3. Send a known amount</td>
+            <td data-label="Selector"><span class="sel">transfer-destination-account-number</span> <span class="sel">transfer-amount</span> <span class="sel">transfer-review-button</span> <span class="sel">transfer-confirm-button</span></td>
+            <td data-label="Assertion">Destination typed directly, with no saved payee selected</td></tr>
+          <tr><td data-label="Step">4. Observe the outcome</td>
+            <td data-label="Selector"><span class="sel">transfer-success</span> <span class="sel">transfer-live-region</span></td>
+            <td data-label="Assertion">Success state visible; live region announces it</td></tr>
+          <tr><td data-label="Step">5. Re-read both balances</td>
+            <td data-label="Selector"><span class="sel">account-balance</span></td>
+            <td data-label="Assertion">Source decreased by exactly the amount, destination increased by exactly the amount, and their sum is unchanged</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid g2" style="margin-top:var(--s-5)">
+      <div class="card card--accent">
+        <h3>Negative journeys the run must also cover</h3>
+        <table class="tbl" style="margin-top:var(--s-3)">
+          <caption class="sr-only">Failure journeys</caption>
+          <thead><tr><th scope="col">Journey</th><th scope="col">Selector proving it</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Journey">Pre-KYC sign-in is 403, not 401</td><td data-label="Selector"><span class="sel">login-error-pending-kyc</span></td></tr>
+            <tr><td data-label="Journey">Insufficient funds leaves the balance untouched</td><td data-label="Selector"><span class="sel">transfer-error-insufficient-funds</span> + <span class="sel">transfer-source-balance</span></td></tr>
+            <tr><td data-label="Journey">Empty statement is a 200, not an error</td><td data-label="Selector"><span class="sel">statement-empty-state</span></td></tr>
+            <tr><td data-label="Journey">Empty decision reason is blocked before any call</td><td data-label="Selector"><span class="sel">decision-error-reason-required</span></td></tr>
+            <tr><td data-label="Journey">Illegal loan transition is 409, row unchanged</td><td data-label="Selector"><span class="sel">decision-error-illegal-transition</span> + <span class="sel">loan-queue-status</span></td></tr>
+            <tr><td data-label="Journey">Audit ledger exposes no mutating affordance</td><td data-label="Selector"><span class="sel">audit-table</span> — assert zero buttons with an edit, delete or remove accessible name</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>What must not be findable</h3>
+        <p class="small muted">These are negative assertions. Each corresponds to a rule that was explicitly withdrawn,
+          and each must return zero matches across every screen.</p>
+        <ul class="stack" style="padding-left:1.1rem;margin-top:var(--s-3)">
+          <li class="small">No text matching <code class="mono">/daily limit|transfer cap|remaining allowance|max transfer/i</code></li>
+          <li class="small">No control or copy asserting a beneficiary is required before a transfer; <span class="sel">transfer-destination-account-number</span> must be enabled and editable when <span class="sel">beneficiaries-empty-state</span> is showing</li>
+          <li class="small">No request body field named <code class="mono">beneficiary_id</code> on the transfer call</li>
+          <li class="small">No age, date-of-birth or eligibility validation message on <span class="sel">register-date-of-birth</span></li>
+          <li class="small">No text matching <code class="mono">/eligib|you may qualify|credit score|risk band|affordab|instal?ment.to.income/i</code> on E6-S5 or E7-S1</li>
+          <li class="small">No money value rendered as a bare JSON number in any fixture</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ MCP ============================ -->
+  <section aria-labelledby="h-mcp" style="margin-top:var(--s-8)">
+    <p class="eyebrow">05 &middot; Configuration &amp; evidence</p>
+    <h2 id="h-mcp">Playwright MCP, and the proof it ran</h2>
+    <div class="grid g2" style="margin-top:var(--s-4)">
+      <div class="card">
+        <h3>AC1 &mdash; <code class="mono">.mcp.json</code> at the repository root</h3>
+        <p class="small muted">Must parse as valid JSON and declare a Playwright MCP server with a runnable command.</p>
+        <pre style="margin:var(--s-3) 0 0;padding:var(--s-4);background:var(--ink-900);color:var(--ink-100);border-radius:var(--r-2);font:400 var(--t-13)/1.6 var(--f-money);overflow-x:auto">{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}</pre>
+      </div>
+      <div class="card">
+        <h3>AC2 &mdash; configuration alone is not enough</h3>
+        <p class="small muted">An evaluator run must leave an artefact under <code class="mono">specs/reviews/</code>
+          recording the MCP-driven verification and its outcome, and naming at least one screen verified through MCP
+          rather than through a direct HTTP call.</p>
+        <ul class="stack" style="padding-left:1.1rem;margin-top:var(--s-3)">
+          <li class="small">Which screen was opened, at which viewport</li>
+          <li class="small">Which selectors from this map were queried</li>
+          <li class="small">The pass or fail outcome per acceptance criterion</li>
+          <li class="small">The axe violation count by impact</li>
+          <li class="small">The snapshot diff result for all three breakpoints</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; E9-S1 verification map &middot; synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Tokens from <a href="E6-S1.html">E6-S1</a>. Conformance evidence: <a href="E7-S3.html">E7-S3</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var MAP = [
+    ['E6-S2', 'register-form', 'form', 'Fill and submit; assert POST /api/v1/auth/register carries email, password, full_name, date_of_birth', 'AC-01 · F174'],
+    ['E6-S2', 'register-error-email', 'field error', 'On 409, assert the message names the email as already registered and the route did not change', 'AC-01 · F175'],
+    ['E6-S2', 'kyc-result-verified', 'status alert', 'Assert the VERIFIED outcome renders and a control routing to login is present', 'AC-01 · F176'],
+    ['E6-S2', 'kyc-result-rejected', 'alert', 'Assert the rejected state is textually distinct and no login route is offered', 'AC-01 · F177'],
+    ['E6-S2', 'kyc-stub-reason', 'text', 'Assert the stub_reason returned by the API is displayed verbatim', 'AC-01 · F177'],
+    ['E6-S2', 'login-error-pending-kyc', 'alert', 'On 403 PENDING_KYC assert the copy refers to pending verification and differs from the 401 copy', 'AC-01 · E-09 · F178'],
+    ['E6-S2', 'login-error-invalid-credentials', 'alert', 'On 401 assert a generic message that does not disclose whether the email exists', 'AC-01 · F179'],
+    ['E6-S3', 'account-card', 'repeated card', 'Assert one card per account returned by GET /api/v1/accounts', 'AC-02 · F182'],
+    ['E6-S3', 'account-balance', 'money', 'Assert balance "1000.5" renders as 1,000.50 and "0" renders as 0.00', 'AC-02 · F182'],
+    ['E6-S3', 'open-account-button', 'button', 'Activate; assert POST /api/v1/accounts and a new card showing 0.00 with no page reload', 'AC-02 · F184'],
+    ['E6-S3', 'accounts-empty-state', 'empty state', 'With an empty array, assert the empty state and a visible open-account control', 'AC-02 · F183'],
+    ['E6-S3', 'statement-row', 'repeated row', 'Assert 20 rows on page 1 and that the first row is the newest item in the payload', 'AC-03 · F185'],
+    ['E6-S3', 'statement-amount', 'money', 'Assert each row shows a two-decimal amount and its direction', 'AC-03 · F185'],
+    ['E6-S3', 'pagination-next', 'button', 'Activate; assert the statements endpoint was called with page=2 and rows updated', 'AC-03 · F186'],
+    ['E6-S3', 'statement-empty-state', 'empty state', 'With items [] and total 0, assert the empty state, no error, and no lingering spinner', 'AC-03 · E-20 · F187'],
+    ['E6-S4', 'transfer-destination-account-number', 'input', 'Assert the field is enabled and editable with zero saved payees, and that typing into it alone permits submission', 'AC-04 · DR-17 · F191'],
+    ['E6-S4', 'transfer-beneficiary-shortcut', 'button group', 'Activate a payee; assert only that it writes into the destination field, and that the field stays editable afterwards', 'AC-06 · F190'],
+    ['E6-S4', 'transfer-no-beneficiaries-note', 'text', 'With zero payees, assert the copy does not claim a payee is required', 'AC-04 · DR-17 · F191'],
+    ['E6-S4', 'transfer-amount', 'input', 'Enter 10.001 then 0; assert a validation message each time and that no API call was made', 'AC-04 · F194'],
+    ['E6-S4', 'transfer-confirm-amount', 'money', 'Assert the confirm step restates the exact formatted amount', 'AC-04 · F195'],
+    ['E6-S4', 'transfer-confirm-destination', 'text', 'Assert the confirm step restates the destination account being credited', 'AC-04 · F195'],
+    ['E6-S4', 'transfer-success', 'alert', 'On 201 assert the success state and the source_balance_after value', 'AC-04 · F190'],
+    ['E6-S4', 'transfer-error-insufficient-funds', 'alert', 'On 422 INSUFFICIENT_FUNDS assert the copy names insufficient funds, is distinct from success, and the displayed balance is unchanged', 'AC-05 · E-01 · F192'],
+    ['E6-S4', 'transfer-live-region', 'aria-live', 'Assert the region exists before submission and announces both success and failure', 'AC-05 · F193'],
+    ['E6-S4', 'beneficiary-add-submit', 'button', 'Assert POST /api/v1/beneficiaries with the entered nickname and account number, and the payee appears in the list', 'AC-06 · F188'],
+    ['E6-S4', 'beneficiary-remove-button', 'button', 'Assert DELETE /api/v1/beneficiaries/{id}, 204, and the payee leaves the list while one remains', 'AC-06 · F189'],
+    ['E6-S5', 'loan-application-form', 'form', 'Submit principal 5000.00, tenure 24, purpose; assert POST /api/v1/loans and the new row shows APPLIED', 'AC-07 · F196'],
+    ['E6-S5', 'loan-error-principal', 'field error', 'Enter 0 then 5000.001; assert a validation message each time, no API call, and no eligibility claim in the copy', 'AC-07 · F197'],
+    ['E6-S5', 'loan-timeline-entry', 'repeated row', 'Assert every transition renders in chronological order with status, reason and timestamp', 'AC-07 · F198'],
+    ['E6-S5', 'loan-rejection-reason', 'text', 'Assert the administrator’s recorded reason is visible to the customer', 'AC-08 · F199'],
+    ['E6-S5', 'loan-disbursement-notice', 'alert', 'Assert the DISBURSED state shows the formatted principal as the credited amount', 'AC-07 · F200'],
+    ['E6-S5', 'loans-empty-state', 'empty state', 'With an empty array, assert the empty state and a visible apply control', 'AC-07 · F201'],
+    ['E7-S1', 'loan-queue-row', 'repeated row', 'Assert each row shows applicant, formatted principal, tenure and status', 'AC-08 · F202'],
+    ['E7-S1', 'loan-queue-filter-status', 'select', 'Select UNDER_REVIEW; assert GET /api/v1/admin/loans?status=UNDER_REVIEW and the rows update', 'AC-08 · F203'],
+    ['E7-S1', 'decision-reason', 'textarea', 'Submit empty, then whitespace-only; assert no POST in either case and a validation message', 'AC-08 · E-13 · F204, F205'],
+    ['E7-S1', 'decision-error-reason-required', 'field error', 'Assert the blocking message is bound to the textarea via aria-describedby', 'AC-08 · F204'],
+    ['E7-S1', 'decision-submit', 'button', 'With a real reason, assert POST …/approve carries it and the row status updates in place', 'AC-08 · F206, F207'],
+    ['E7-S1', 'loan-action-approve', 'button', 'Assert it is offered only on UNDER_REVIEW rows, and absent on APPLIED, APPROVED, REJECTED and DISBURSED', 'AC-08 · F208'],
+    ['E7-S1', 'loan-action-disburse', 'button', 'Assert it is offered only on APPROVED rows', 'AC-08 · F208'],
+    ['E7-S1', 'decision-error-illegal-transition', 'alert', 'On 409 assert the copy names an invalid state transition and the row status was not optimistically changed', 'AC-08 · E-11, E-12 · F209'],
+    ['E7-S2', 'audit-row', 'repeated row', 'Assert each entry shows timestamp, actor, action, entity type and entity reference, for both a TRANSFER and a LOAN', 'AC-09 · F210'],
+    ['E7-S2', 'audit-filter-entity-type', 'select', 'Select TRANSFER; assert GET /api/v1/admin/audit?entity_type=TRANSFER and the rows update', 'AC-09 · F211'],
+    ['E7-S2', 'audit-filter-from', 'date input', 'Apply a range; assert the endpoint carries occurred_from and occurred_to', 'AC-09 · F211'],
+    ['E7-S2', 'audit-table', 'table', 'Assert zero buttons or links with an edit, delete or remove accessible name anywhere within it', 'NFR-02 · F212'],
+    ['E7-S2', 'notification-row', 'repeated row', 'Assert each entry shows channel, event_type and status, for a transfer event and a loan transition event', 'AC-10 · F213'],
+    ['E7-S2', 'notification-status-badge', 'badge', 'Assert QUEUED, SENT and FAILED are distinguishable by text, not colour alone, and FAILED is treated distinctly from SENT', 'AC-10 · F214']
+  ];
+
+  function render() {
+    var screen = $('map-filter-screen').value;
+    var q = $('map-filter-search').value.toLowerCase();
+    var rows = MAP.filter(function (r) {
+      if (screen && r[0] !== screen) { return false; }
+      return !q || r.join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+    $('map-empty').classList.toggle('hidden', rows.length > 0);
+    $('map-wrap').classList.toggle('hidden', rows.length === 0);
+    $('map-body').innerHTML = rows.map(function (r) {
+      return '<tr data-testid="verification-map-row" data-screen="' + r[0] + '">' +
+        '<td data-label="Screen"><a href="' + r[0] + '.html">' + r[0] + '</a></td>' +
+        '<td data-label="Selector"><span class="sel">' + r[1] + '</span></td>' +
+        '<td data-label="Element">' + r[2] + '</td>' +
+        '<td data-label="What the run asserts">' + r[3] + '</td>' +
+        '<td data-label="Verifies" class="mono small">' + r[4] + '</td></tr>';
+    }).join('');
+    $('map-count').textContent = rows.length + ' of ' + MAP.length + ' verification targets';
+    $('map-pager').textContent = 'Showing ' + rows.length + ' of ' + MAP.length + ' targets · single page';
+  }
+  $('map-filter-screen').addEventListener('change', render);
+  $('map-filter-search').addEventListener('input', render);
+  $('map-filters').addEventListener('submit', function (e) { e.preventDefault(); });
+  $('map-reset').addEventListener('click', function () {
+    $('map-filter-screen').value = ''; $('map-filter-search').value = ''; render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

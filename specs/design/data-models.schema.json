@@ -1,0 +1,1156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://horizon.test/schemas/claudeforge/data-models.schema.json",
+  "title": "ClaudeForge Banking Suite — Data Models",
+  "description": "Persisted entities for the Horizon Bank retail banking platform (BC-AINE-001). Every money field is a decimal STRING matching ^-?\\d{1,16}(\\.\\d{1,2})?$ and is stored as NUMERIC(18,2) via a Decimal-preserving SQLAlchemy TypeDecorator; it is never a float and never a JSON number (NFR-01, DD-05, DD-16). Deliberately absent from every definition below: transfer caps, daily limits and velocity controls; any beneficiary precondition on a transfer; any applicant age or date-of-birth gate; any loan eligibility threshold, ratio, score or band. Loan approval is an administrator decision (AC-08).",
+  "type": "object",
+  "properties": {
+    "customers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Customer"
+      }
+    },
+    "kyc_records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/KycRecord"
+      }
+    },
+    "accounts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Account"
+      }
+    },
+    "transactions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Transaction"
+      }
+    },
+    "transfers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Transfer"
+      }
+    },
+    "beneficiaries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Beneficiary"
+      }
+    },
+    "loan_applications": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LoanApplication"
+      }
+    },
+    "loan_state_transitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LoanStateTransition"
+      }
+    },
+    "audit_entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AuditEntry"
+      }
+    },
+    "notifications": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Notification"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Money": {
+      "type": "string",
+      "pattern": "^-?\\d{1,16}(\\.\\d{1,2})?$",
+      "description": "A monetary amount as a decimal string with at most 2 decimal places. Never a JSON number (NFR-01, DD-16).",
+      "examples": [
+        "0.00",
+        "1234.56"
+      ]
+    },
+    "PositiveMoney": {
+      "type": "string",
+      "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+      "description": "A non-negative monetary amount as a decimal string. Never a JSON number.",
+      "examples": [
+        "0.00",
+        "250.00"
+      ]
+    },
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "description": "UUID v4 identifier.",
+      "examples": [
+        "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+      ]
+    },
+    "Role": {
+      "type": "string",
+      "enum": [
+        "CUSTOMER",
+        "ADMIN"
+      ],
+      "description": "Principal role. ADMIN is seeded only, never self-registered (OUT-11)."
+    },
+    "CustomerStatus": {
+      "type": "string",
+      "enum": [
+        "PENDING_KYC",
+        "ACTIVE",
+        "SUSPENDED"
+      ],
+      "description": "Customer lifecycle status."
+    },
+    "KycStatus": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "VERIFIED",
+        "REJECTED"
+      ],
+      "description": "KYC verdict status."
+    },
+    "AccountStatus": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "CLOSED"
+      ],
+      "description": "Account status."
+    },
+    "TransactionDirection": {
+      "type": "string",
+      "enum": [
+        "DEBIT",
+        "CREDIT"
+      ],
+      "description": "Ledger movement direction."
+    },
+    "TransferStatus": {
+      "type": "string",
+      "enum": [
+        "COMPLETED",
+        "FAILED"
+      ],
+      "description": "Transfer attempt outcome. A FAILED attempt moved no money (A-08)."
+    },
+    "LoanStatus": {
+      "type": "string",
+      "enum": [
+        "APPLIED",
+        "UNDER_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "DISBURSED"
+      ],
+      "description": "Loan application state. Legal transitions: APPLIED->UNDER_REVIEW, UNDER_REVIEW->APPROVED, UNDER_REVIEW->REJECTED, APPROVED->DISBURSED. Every other pair is illegal."
+    },
+    "NotificationStatus": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "SENT",
+        "FAILED"
+      ],
+      "description": "Notification dispatch state."
+    },
+    "NotificationChannel": {
+      "type": "string",
+      "enum": [
+        "EMAIL",
+        "SMS"
+      ],
+      "description": "Stub channel; one dispatcher serves both (A-09)."
+    },
+    "DocumentType": {
+      "type": "string",
+      "enum": [
+        "PASSPORT",
+        "NATIONAL_ID",
+        "DRIVING_LICENCE"
+      ],
+      "description": "Recognised KYC document types."
+    },
+    "AccountNumber": {
+      "type": "string",
+      "pattern": "^HZN[0-9]{10}$",
+      "description": "Human-quotable account number. Unique across accounts and used directly as a transfer destination (DD-13).",
+      "examples": [
+        "HZN0000000241"
+      ]
+    },
+    "Customer": {
+      "type": "object",
+      "title": "Customer",
+      "description": "A retail banking customer or a seeded administrator. Table: customers.",
+      "required": [
+        "id",
+        "email",
+        "password_hash",
+        "full_name",
+        "date_of_birth",
+        "role",
+        "status",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "description": "UNIQUE. Lower-cased on store.",
+          "examples": [
+            "ada.tester@horizon.test"
+          ]
+        },
+        "password_hash": {
+          "type": "string",
+          "description": "bcrypt or argon2 output. Never plaintext, never logged, never returned by any endpoint (NFR-03).",
+          "maxLength": 255,
+          "examples": [
+            "$2b$12$X4Kq3rSyntheticHashValueForSeedDataOnly000000000000"
+          ]
+        },
+        "full_name": {
+          "type": "string",
+          "description": "Customer's full name.",
+          "minLength": 1,
+          "maxLength": 200,
+          "examples": [
+            "Ada Tester"
+          ]
+        },
+        "date_of_birth": {
+          "type": "string",
+          "format": "date",
+          "description": "Profile data only. No rule reads this field: there is no minimum applicant age and no date-of-birth eligibility gate (DD-14.3).",
+          "examples": [
+            "1991-04-17"
+          ]
+        },
+        "role": {
+          "$ref": "#/definitions/Role"
+        },
+        "status": {
+          "$ref": "#/definitions/CustomerStatus"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Registration timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last status-change timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "email": "ada.tester@horizon.test",
+          "password_hash": "$2b$12$X4Kq3rSyntheticHashValueForSeedDataOnly000000000000",
+          "full_name": "Ada Tester",
+          "date_of_birth": "1991-04-17",
+          "role": "CUSTOMER",
+          "status": "ACTIVE",
+          "created_at": "2026-08-19T09:41:03.117Z",
+          "updated_at": "2026-08-19T09:42:10.004Z"
+        }
+      ]
+    },
+    "KycRecord": {
+      "type": "object",
+      "title": "KycRecord",
+      "description": "A KYC submission and its deterministic stub verdict (AC-01, A-02). Table: kyc_records.",
+      "required": [
+        "id",
+        "customer_id",
+        "document_type",
+        "document_number",
+        "status",
+        "stub_reason",
+        "verified_at",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "document_type": {
+          "$ref": "#/definitions/DocumentType"
+        },
+        "document_number": {
+          "type": "string",
+          "description": "Redacted in every log line (NFR-03). The reserved synthetic value X0000000 always yields REJECTED (A-02).",
+          "pattern": "^[A-Z][0-9]{7}$",
+          "examples": [
+            "P1234567"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/KycStatus"
+        },
+        "stub_reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Populated on REJECTED only.",
+          "maxLength": 200,
+          "examples": [
+            "RESERVED_TEST_DOCUMENT"
+          ]
+        },
+        "verified_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Set on VERIFIED only.",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "0d9c2f11-6a4b-4a8f-9f3e-2b1c7d5e8a04",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "document_type": "PASSPORT",
+          "document_number": "P1234567",
+          "status": "VERIFIED",
+          "stub_reason": null,
+          "verified_at": "2026-08-19T09:42:10.004Z",
+          "created_at": "2026-08-19T09:42:09.981Z"
+        }
+      ]
+    },
+    "Account": {
+      "type": "object",
+      "title": "Account",
+      "description": "A savings account. Opens at exactly 0.00 (AC-02). There is no minimum balance (OUT-08). Table: accounts.",
+      "required": [
+        "id",
+        "customer_id",
+        "account_number",
+        "type",
+        "balance",
+        "currency",
+        "status",
+        "opened_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "account_number": {
+          "$ref": "#/definitions/AccountNumber"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "SAVINGS"
+          ],
+          "description": "Only savings accounts exist (OUT-07)."
+        },
+        "balance": {
+          "type": "string",
+          "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Current balance; initialises to 0.00 on opening (AC-02). Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "750.00"
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "enum": [
+            "INR"
+          ],
+          "description": "Single currency throughout (A-05)."
+        },
+        "status": {
+          "$ref": "#/definitions/AccountStatus"
+        },
+        "opened_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account opening timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "account_number": "HZN0000000241",
+          "type": "SAVINGS",
+          "balance": "750.00",
+          "currency": "INR",
+          "status": "ACTIVE",
+          "opened_at": "2026-08-19T09:45:00.912Z"
+        }
+      ]
+    },
+    "Transaction": {
+      "type": "object",
+      "title": "Transaction",
+      "description": "A double-entry ledger row backing the statement (AC-03). One transfer produces exactly two rows - one DEBIT and one CREDIT - sharing a transfer_id. A loan disbursement produces one CREDIT row with transfer_id null. Table: transactions.",
+      "required": [
+        "id",
+        "account_id",
+        "counterparty_account_id",
+        "direction",
+        "amount",
+        "balance_after",
+        "transfer_id",
+        "description",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "account_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "counterparty_account_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "Other side of the movement; null for a loan disbursement credit.",
+          "examples": [
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          ]
+        },
+        "direction": {
+          "$ref": "#/definitions/TransactionDirection"
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Absolute movement amount; sign is carried by direction. Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "250.00"
+          ]
+        },
+        "balance_after": {
+          "type": "string",
+          "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Balance of account_id after this row was applied. Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "750.00"
+          ]
+        },
+        "transfer_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "Shared by the debit and credit legs of one transfer; null for a disbursement.",
+          "examples": [
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Free text.",
+          "maxLength": 140,
+          "examples": [
+            "Rent share"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Row timestamp (UTC); the statement ordering key.",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "e7c1d4a8-3b62-4f19-9c05-7d8e2a4b6f30",
+          "account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "counterparty_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+          "direction": "DEBIT",
+          "amount": "250.00",
+          "balance_after": "750.00",
+          "transfer_id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+          "description": "Rent share",
+          "created_at": "2026-08-19T11:03:21.552Z"
+        }
+      ]
+    },
+    "Transfer": {
+      "type": "object",
+      "title": "Transfer",
+      "description": "One row per transfer attempt (AC-04, AC-05). The destination is an account number supplied directly; there is no beneficiary_id field and no beneficiary is required (DD-13). There is no transfer cap, daily limit or velocity control (DD-14.1). Table: transfers.",
+      "required": [
+        "id",
+        "source_account_id",
+        "destination_account_id",
+        "destination_account_number",
+        "amount",
+        "status",
+        "failure_code",
+        "source_balance_after",
+        "description",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "source_account_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "destination_account_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "Null when the submitted account number could not be resolved.",
+          "examples": [
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          ]
+        },
+        "destination_account_number": {
+          "$ref": "#/definitions/AccountNumber"
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Amount moved. Strictly positive, at most 2 decimal places, with no upper bound. Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "250.00"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/TransferStatus"
+        },
+        "failure_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Populated on FAILED only; matches the error.code returned to the caller, e.g. INSUFFICIENT_FUNDS.",
+          "maxLength": 64,
+          "examples": [
+            "INSUFFICIENT_FUNDS"
+          ]
+        },
+        "source_balance_after": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^-?\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Source balance after a COMPLETED transfer; null on FAILED. Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "750.00"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Free text.",
+          "maxLength": 140,
+          "examples": [
+            "Rent share"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Attempt timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+          "source_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "destination_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+          "destination_account_number": "HZN0000000318",
+          "amount": "250.00",
+          "status": "COMPLETED",
+          "failure_code": null,
+          "source_balance_after": "750.00",
+          "description": "Rent share",
+          "created_at": "2026-08-19T11:03:21.552Z"
+        },
+        {
+          "id": "2b3c4d5e-6f70-4819-a2b3-c4d5e6f70819",
+          "source_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "destination_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+          "destination_account_number": "HZN0000000318",
+          "amount": "99999.00",
+          "status": "FAILED",
+          "failure_code": "INSUFFICIENT_FUNDS",
+          "source_balance_after": null,
+          "description": null,
+          "created_at": "2026-08-19T11:01:09.004Z"
+        }
+      ]
+    },
+    "Beneficiary": {
+      "type": "object",
+      "title": "Beneficiary",
+      "description": "A saved payee (AC-06). A convenience feature only: a beneficiary is never a precondition of a transfer (DD-13). Removal is a soft delete so historical references are never orphaned (A-07, DD-19). Table: beneficiaries.",
+      "required": [
+        "id",
+        "customer_id",
+        "nickname",
+        "beneficiary_name",
+        "beneficiary_account_number",
+        "created_at",
+        "deleted_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "nickname": {
+          "type": "string",
+          "description": "The customer's own label for this payee.",
+          "minLength": 1,
+          "maxLength": 60,
+          "examples": [
+            "Flatmate"
+          ]
+        },
+        "beneficiary_name": {
+          "type": "string",
+          "description": "Payee's name as the customer records it.",
+          "minLength": 1,
+          "maxLength": 200,
+          "examples": [
+            "Grace Sample"
+          ]
+        },
+        "beneficiary_account_number": {
+          "$ref": "#/definitions/AccountNumber"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        },
+        "deleted_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Soft-delete marker; null means active. List endpoints filter deleted_at IS NULL (DD-19).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "5c6d7e8f-9a0b-41c2-83d4-5e6f7a8b9c0d",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "nickname": "Flatmate",
+          "beneficiary_name": "Grace Sample",
+          "beneficiary_account_number": "HZN0000000318",
+          "created_at": "2026-08-19T11:10:44.870Z",
+          "deleted_at": null
+        }
+      ]
+    },
+    "LoanApplication": {
+      "type": "object",
+      "title": "LoanApplication",
+      "description": "A personal loan request (AC-07). Validation is structural only: principal strictly positive with at most 2 decimal places, tenure a positive whole number of months. There is no eligibility computation of any kind - no principal or tenure bound, no income requirement, no instalment-to-income ratio, no credit score, no risk band (DD-14.4). Table: loan_applications.",
+      "required": [
+        "id",
+        "customer_id",
+        "principal",
+        "tenure_months",
+        "purpose",
+        "declared_monthly_income",
+        "status",
+        "disbursement_account_id",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "principal": {
+          "type": "string",
+          "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Requested principal. Strictly positive with no minimum and no maximum. Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "5000.00"
+          ]
+        },
+        "tenure_months": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "A positive whole number of months. No maximum.",
+          "examples": [
+            24
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Free text. Read by no rule.",
+          "minLength": 1,
+          "maxLength": 200,
+          "examples": [
+            "Home improvement"
+          ]
+        },
+        "declared_monthly_income": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+          "description": "Optional and informational. No rule reads this field (DD-14.4). Decimal string, never a JSON number (NFR-01, DD-16).",
+          "examples": [
+            "0.00",
+            "3200.00"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/LoanStatus"
+        },
+        "disbursement_account_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "An ACTIVE SAVINGS account owned by the applicant, credited at disbursement (A-04).",
+          "examples": [
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Application timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last state-change timestamp (UTC).",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "principal": "5000.00",
+          "tenure_months": 24,
+          "purpose": "Home improvement",
+          "declared_monthly_income": "3200.00",
+          "status": "APPROVED",
+          "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "created_at": "2026-08-19T11:20:00.000Z",
+          "updated_at": "2026-08-19T11:41:55.180Z"
+        }
+      ]
+    },
+    "LoanStateTransition": {
+      "type": "object",
+      "title": "LoanStateTransition",
+      "description": "An immutable entry in a loan's history. Append-only: no update or delete path exists. A non-empty reason is mandatory when to_status is APPROVED or REJECTED (AC-08, E-13). Table: loan_state_transitions.",
+      "required": [
+        "id",
+        "loan_id",
+        "from_status",
+        "to_status",
+        "actor_id",
+        "reason",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "loan_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "from_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "APPLIED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "REJECTED",
+            "DISBURSED",
+            null
+          ],
+          "description": "Null for the initial APPLIED row."
+        },
+        "to_status": {
+          "$ref": "#/definitions/LoanStatus"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "The applicant for APPLIED; the administrator for every later transition.",
+          "examples": [
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Mandatory and non-empty on APPROVED and REJECTED; optional otherwise.",
+          "maxLength": 500,
+          "examples": [
+            "Documents complete; approved by operations."
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Transition timestamp (UTC); the chronological ordering key.",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "A decision reason is mandatory and non-empty on APPROVED and REJECTED (AC-08, E-13).",
+          "if": {
+            "properties": {
+              "to_status": {
+                "enum": [
+                  "APPROVED",
+                  "REJECTED"
+                ]
+              }
+            },
+            "required": [
+              "to_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          }
+        }
+      ],
+      "examples": [
+        {
+          "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+          "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "from_status": "UNDER_REVIEW",
+          "to_status": "APPROVED",
+          "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+          "reason": "Documents complete; approved by operations.",
+          "created_at": "2026-08-19T11:41:55.180Z"
+        }
+      ]
+    },
+    "AuditEntry": {
+      "type": "object",
+      "title": "AuditEntry",
+      "description": "An append-only ledger row (NFR-02, AC-09). Enforced at three levels: a repository with no update or delete method, SQLite BEFORE UPDATE and BEFORE DELETE triggers, and a write-time hook. actor_id and entity_id are soft references, not foreign keys, so the audit module imports nothing from transfers or loans (DD-15). Table: audit_entries.",
+      "required": [
+        "id",
+        "occurred_at",
+        "actor_id",
+        "actor_role",
+        "action",
+        "entity_type",
+        "entity_id",
+        "correlation_id",
+        "metadata_json"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server-assigned timestamp (UTC); never caller-supplied.",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        },
+        "actor_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "The acting principal; null for a system-originated entry.",
+          "examples": [
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          ]
+        },
+        "actor_role": {
+          "type": "string",
+          "enum": [
+            "CUSTOMER",
+            "ADMIN",
+            "SYSTEM"
+          ],
+          "description": "Role of the actor."
+        },
+        "action": {
+          "type": "string",
+          "description": "Action identifier.",
+          "minLength": 1,
+          "maxLength": 64,
+          "examples": [
+            "TRANSFER_COMPLETED",
+            "LOAN_APPROVED",
+            "ACCOUNT_OPENED"
+          ]
+        },
+        "entity_type": {
+          "type": "string",
+          "description": "Entity class the action targeted.",
+          "minLength": 1,
+          "maxLength": 64,
+          "examples": [
+            "Transfer",
+            "LoanApplication",
+            "Account",
+            "Beneficiary",
+            "Customer"
+          ]
+        },
+        "entity_id": {
+          "type": "string",
+          "description": "Identifier of the targeted entity. A plain string, not a foreign key.",
+          "minLength": 1,
+          "maxLength": 36,
+          "examples": [
+            "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f"
+          ]
+        },
+        "correlation_id": {
+          "type": "string",
+          "description": "Join key back into the log stream (DD-18).",
+          "minLength": 1,
+          "maxLength": 64,
+          "examples": [
+            "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+          ]
+        },
+        "metadata_json": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true,
+          "description": "Opaque caller-supplied context. Never used as a WHERE predicate on its interior (DD-15). Serialised as 'metadata' on the wire.",
+          "examples": [
+            {
+              "from_status": "UNDER_REVIEW",
+              "to_status": "APPROVED"
+            }
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "f0e1d2c3-b4a5-4967-8879-0a1b2c3d4e5f",
+          "occurred_at": "2026-08-19T11:41:55.180Z",
+          "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+          "actor_role": "ADMIN",
+          "action": "LOAN_APPROVED",
+          "entity_type": "LoanApplication",
+          "entity_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31",
+          "metadata_json": {
+            "from_status": "UNDER_REVIEW",
+            "to_status": "APPROVED"
+          }
+        }
+      ]
+    },
+    "Notification": {
+      "type": "object",
+      "title": "Notification",
+      "description": "A stub notification (AC-10). Enqueued inside the business transaction so it cannot be orphaned; dispatched outside it so a gateway failure never rolls back committed money (E-18). Every successful transfer and every loan state transition without exception produces one. Table: notifications.",
+      "required": [
+        "id",
+        "customer_id",
+        "channel",
+        "event_type",
+        "payload_json",
+        "status",
+        "created_at",
+        "sent_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/Uuid"
+        },
+        "channel": {
+          "$ref": "#/definitions/NotificationChannel"
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "TRANSFER_COMPLETED",
+            "LOAN_APPLIED",
+            "LOAN_UNDER_REVIEW",
+            "LOAN_APPROVED",
+            "LOAN_REJECTED",
+            "LOAN_DISBURSED"
+          ],
+          "description": "The business event that produced this notification."
+        },
+        "payload_json": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Rendered content. Money values inside are decimal strings. Serialised as 'payload' on the wire.",
+          "examples": [
+            {
+              "transfer_id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+              "amount": "250.00"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/NotificationStatus"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Enqueue timestamp (UTC), written inside the business transaction.",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        },
+        "sent_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Dispatch timestamp (UTC); null while QUEUED or FAILED.",
+          "examples": [
+            "2026-08-19T11:03:21.552Z"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "9a8b7c6d-5e4f-4031-8221-314151617181",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "channel": "EMAIL",
+          "event_type": "LOAN_APPROVED",
+          "payload_json": {
+            "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+            "principal": "5000.00"
+          },
+          "status": "SENT",
+          "created_at": "2026-08-19T11:41:55.180Z",
+          "sent_at": "2026-08-19T11:41:55.204Z"
+        }
+      ]
+    }
+  }
+}
