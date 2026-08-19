@@ -1,184 +1,690 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Design system — Horizon Bank mockup (E6-S1)</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E6-S1 Design System &amp; Tokens</title>
+<!--
+  HORIZON BANK — DESIGN SYSTEM (story E6-S1)
+  Source of truth. The token block below is reproduced byte-identically in every other mockup.
+  Identity: trustworthy financial software, not fintech novelty (DD-20).
+  Money: decimal STRING on the wire (NFR-01 / DD-05 / DD-16). The browser formats, never computes.
+  Single currency INR (A-05); account numbers match api-contracts.schema.json: ^HZN[0-9]{10}$.
+  Synthetic data only. No transfer cap, no beneficiary precondition, no age gate, no loan eligibility rule (DD-14).
+-->
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
 :root{
-  --ink:#0B1F33;--ink-2:#1C3A57;--canvas:#F1F4F8;--surface:#FFFFFF;--line:#D9E1EA;
-  --muted:#54677A;--accent:#A2541F;--accent-soft:#FAF0E7;
-  --ok:#186B41;--ok-soft:#E7F3EC;--warn:#7C5200;--warn-soft:#FCF2DF;
-  --danger:#A5251B;--danger-soft:#FCEBE9;
-  --r:10px;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
 }
-body{font-family:var(--sans);background:var(--canvas);color:var(--ink);line-height:1.5;
-  -webkit-font-smoothing:antialiased}
-.money{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-.01em}
-a{color:var(--accent)}
-/* ---------- chrome ---------- */
-.top{background:var(--ink);color:#fff;padding:0 clamp(16px,4vw,32px)}
-.top-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:24px;
-  min-height:60px;flex-wrap:wrap}
-.mark{font-family:var(--serif);font-size:19px;letter-spacing:.02em;padding:8px 0}
-.mark span{color:#D9A06B}
-nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
-nav a{color:#C3D2E0;text-decoration:none;padding:8px 12px;border-radius:6px;font-size:14px}
-nav a[aria-current="page"]{background:rgba(255,255,255,.12);color:#fff}
-nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
-a:focus-visible{outline:3px solid #D9A06B;outline-offset:2px}
-main{max-width:1200px;margin:0 auto;padding:clamp(20px,4vw,36px) clamp(16px,4vw,32px) 64px}
-h1{font-family:var(--serif);font-size:clamp(24px,4vw,31px);font-weight:600;letter-spacing:-.01em}
-h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
-  font-weight:600;margin-bottom:12px}
-.sub{color:var(--muted);margin-top:6px;font-size:15px;max-width:62ch}
-.head{margin-bottom:28px}
-/* ---------- surfaces ---------- */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
-.grid{display:grid;gap:16px}
-@media(min-width:768px){.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:1100px){.split{grid-template-columns:1.6fr 1fr}}
-/* ---------- balance ---------- */
-.bal{font-size:clamp(30px,6vw,40px);font-weight:600;letter-spacing:-.02em;margin:6px 0 2px}
-.acct{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-/* ---------- pills ---------- */
-.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-  padding:4px 10px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
-.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.p-ok{background:var(--ok-soft);color:var(--ok)}
-.p-warn{background:var(--warn-soft);color:var(--warn)}
-.p-bad{background:var(--danger-soft);color:var(--danger)}
-.p-neutral{background:#EDF1F6;color:var(--ink-2)}
-/* ---------- table ---------- */
-.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
-table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
-  color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line);background:#FAFBFD}
-td{padding:13px 16px;border-bottom:1px solid #EEF2F6}
-tr:last-child td{border-bottom:0}
-td.num{text-align:right;font-variant-numeric:tabular-nums}
-th.num{text-align:right}
-.debit{color:var(--danger)}
-.credit{color:var(--ok)}
-/* ---------- forms ---------- */
-label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
-.hint{font-size:12.5px;color:var(--muted);font-weight:400;margin-top:5px}
-input,select,textarea{width:100%;padding:11px 13px;border:1px solid #B9C6D4;border-radius:8px;
-  font:inherit;background:#fff;color:var(--ink)}
-input:focus,select:focus,textarea:focus{border-color:var(--ink-2)}
-.field{margin-bottom:18px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;
-  border-radius:8px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-ghost{background:#fff;border-color:#B9C6D4;color:var(--ink)}
-.btn-ok{background:var(--ok);color:#fff}
-.btn-bad{background:#fff;border-color:var(--danger);color:var(--danger)}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-/* ---------- messages ---------- */
-.note{border-left:3px solid;padding:13px 16px;border-radius:0 8px 8px 0;font-size:14px}
-.n-ok{background:var(--ok-soft);border-color:var(--ok)}
-.n-bad{background:var(--danger-soft);border-color:var(--danger)}
-.n-info{background:var(--accent-soft);border-color:var(--accent)}
-.err{color:var(--danger);font-size:13px;margin-top:6px;font-weight:500}
-/* ---------- timeline ---------- */
-.tl{list-style:none;position:relative;padding-left:26px}
-.tl::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
-.tl li{position:relative;padding:0 0 22px}
-.tl li::before{content:"";position:absolute;left:-24px;top:5px;width:11px;height:11px;
-  border-radius:50%;background:#fff;border:2px solid var(--line)}
-.tl li.done::before{background:var(--ok);border-color:var(--ok)}
-.tl li.now::before{background:var(--accent);border-color:var(--accent)}
-.tl .when{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-.tl .what{font-weight:600;font-size:14.5px}
-.tl .why{font-size:13.5px;color:var(--muted);margin-top:3px}
-/* ---------- misc ---------- */
-.kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;
-  border-bottom:1px solid #EEF2F6;font-size:14px}
-.kv:last-child{border:0}
-.kv dt{color:var(--muted)}
-.kv dd{font-weight:600;font-variant-numeric:tabular-nums}
-.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:14px 16px;
-  font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);flex-wrap:wrap}
-.pager button{padding:7px 12px;border:1px solid #B9C6D4;background:#fff;border-radius:7px;
-  font:inherit;cursor:pointer}
-.spec{max-width:1200px;margin:0 auto 0;padding:16px clamp(16px,4vw,32px) 40px;
-  font-size:13px;color:var(--muted)}
-.spec code{background:#E7EDF4;padding:1px 5px;border-radius:4px;font-size:12px;color:var(--ink-2)}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.api{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
-  background:#E7EDF4;color:#1C3A57;border:1px solid #D9E1EA;border-radius:5px;padding:2px 6px;
-  margin:4px 0 0 8px;vertical-align:middle;white-space:nowrap;font-weight:600}
-.api-note{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
-  color:#54677A;margin-top:6px}
-</style></head><body>
-<a class="sr" href="#main">Skip to main content</a>
-<header class="top"><div class="top-in">
-  <div class="mark">Horizon<span>&#183;</span>Bank</div>
-  <nav aria-label="Primary"><a href="#">Dashboard</a><a href="#">Transfer</a><a href="#">Beneficiaries</a><a href="#">Loans</a></nav>
-</div></header>
-<main id="main">
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
 
-<div class="head"><h1>Horizon Bank design system</h1>
-<p class="sub">Token set and component inventory shared by every screen. Direction: trustworthy
-financial software, not fintech novelty. Money is the loudest element on any screen it appears on.</p></div>
+/* page-specific: design-system documentation surfaces */
+.swatch{border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden;background:var(--surface)}
+.swatch .chip{height:76px;display:flex;align-items:flex-end;padding:var(--s-2)}
+.swatch dl{margin:0;padding:var(--s-3);font-size:var(--t-13);display:grid;grid-template-columns:auto 1fr;gap:2px var(--s-2)}
+.swatch dt{color:var(--ink-600);font-weight:700;font-size:var(--t-12);letter-spacing:.06em;text-transform:uppercase}
+.swatch dd{margin:0;font-family:var(--f-money);color:var(--ink-800)}
+.scale-row{display:flex;align-items:baseline;gap:var(--s-4);padding:var(--s-3) 0;border-bottom:1px solid var(--ink-200);flex-wrap:wrap}
+.scale-row .tag{font:700 var(--t-12)/1 var(--f-money);color:var(--ink-500);width:9ch;flex:none}
+.sp-demo{background:var(--accent-050);border-left:3px solid var(--accent-600);height:18px}
+.spec{font-family:var(--f-money);font-size:var(--t-13);color:var(--ink-600)}
+</style>
+</head>
+<body>
 
-<h2>Palette</h2>
-<div class="grid g3" style="margin-bottom:32px">
-  <div class="card"><div style="height:56px;background:#0B1F33;border-radius:8px"></div>
-    <p style="margin-top:10px;font-weight:600">Ink &mdash; #0B1F33</p>
-    <p class="hint">Header, primary text. 15.8:1 on canvas.</p></div>
-  <div class="card"><div style="height:56px;background:#A2541F;border-radius:8px"></div>
-    <p style="margin-top:10px;font-weight:600">Copper &mdash; #A2541F</p>
-    <p class="hint">The single decisive accent. 5.2:1 on white; carries white text at 4.9:1.</p></div>
-  <div class="card"><div style="height:56px;background:#F1F4F8;border:1px solid #D9E1EA;border-radius:8px"></div>
-    <p style="margin-top:10px;font-weight:600">Canvas &mdash; #F1F4F8</p>
-    <p class="hint">Page ground. Surfaces sit on it in white.</p></div>
-</div>
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Bank</em></a>
+    <p class="who" style="margin:0">Design system &middot; v1.0 &middot; BC-AINE-001</p>
+  </div>
+</header>
 
-<h2>State colour is only ever state</h2>
-<div class="card" style="margin-bottom:32px">
-  <div class="row" style="gap:12px">
-    <span class="pill p-ok">Completed</span><span class="pill p-warn">Under review</span>
-    <span class="pill p-bad">Rejected</span><span class="pill p-neutral">Applied</span>
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html" aria-current="page">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html">E9-S1 Verification map</a></li>
+    </ul>
   </div>
-  <p class="hint" style="margin-top:14px">Never decorative. A balance never carries a gradient and a
-  failure is never ambiguous.</p>
-</div>
+</nav>
 
-<h2>Money</h2>
-<div class="grid g2" style="margin-bottom:32px">
-  <div class="card">
-    <p class="acct">Savings &middot; HZN0100200300</p>
-    <p class="bal money">12,480.75</p>
-    <p class="hint">Tabular figures so digits align down a column. Rendered from the decimal
-    <em>string</em> the API returns &mdash; the browser never performs arithmetic on money.</p>
-  </div>
-  <div class="card"><h2 style="margin-bottom:10px">Alignment proof</h2>
-    <dl><div class="kv"><dt>Opening</dt><dd class="money">1,204.00</dd></div>
-    <div class="kv"><dt>Transfer out</dt><dd class="money debit">-125.50</dd></div>
-    <div class="kv"><dt>Transfer in</dt><dd class="money credit">+9,999.99</dd></div>
-    <div class="kv"><dt>Closing</dt><dd class="money">11,078.49</dd></div></dl>
-  </div>
-</div>
+<main class="wrap" id="main" data-testid="app-main">
 
-<h2>Typography &amp; controls</h2>
-<div class="grid g2">
-  <div class="card">
-    <p style="font-family:var(--serif);font-size:29px">Serif for identity</p>
-    <p style="margin-top:6px">System sans for interface text, at 15px with a 1.5 line height.</p>
-    <div class="row" style="margin-top:16px"><button class="btn btn-primary" data-testid="ds-button-primary">Primary</button>
-    <button class="btn btn-ghost" data-testid="ds-button-secondary">Secondary</button></div>
-  </div>
-  <div class="card">
-    <div class="field"><label for="d">Labelled input</label>
-      <input id="d" name="account_number" data-testid="ds-input-account-number" value="HZN0100200300"><p class="hint">Every input has a programmatically
-      associated label and hint.</p></div>
-    <div class="note n-bad" role="alert">Errors are announced, not just coloured.</div>
-  </div>
-</div>
+  <section class="sec" aria-labelledby="h-intro">
+    <p class="eyebrow">E6-S1 &middot; Foundation</p>
+    <h1 id="h-intro">A design system for money you can read at a glance.</h1>
+    <p class="lede">Horizon Bank is a retail bank, not a novelty. The system rests on three commitments:
+      <strong>money is the loudest element on any screen it appears on</strong>, <strong>state colour is reserved
+      strictly for state</strong>, and <strong>no failure is ambiguous</strong>. Every screen in this pack reproduces
+      the token block above verbatim.</p>
+    <div class="grid g3" style="margin-top:var(--s-5)">
+      <div class="card card--accent">
+        <h3>Ledger, not dashboard</h3>
+        <p class="small muted">Rules and hairlines carry structure instead of shadows and soft cards. Radii stop at
+          4px. The page reads like a statement, because that is what it is.</p>
+      </div>
+      <div class="card card--accent">
+        <h3>Tabular figures, always</h3>
+        <p class="small muted">Every money value renders in a monospaced, tabular-numeral face so digits align down a
+          column and a misplaced decimal is visible instantly.</p>
+      </div>
+      <div class="card card--accent">
+        <h3>Colour with a job</h3>
+        <p class="small muted">Green, amber and red mean success, caution and danger. They are never decorative. A
+          balance never carries a gradient.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-colour">
+    <p class="eyebrow">01 &middot; Colour</p>
+    <h2 id="h-colour">Palette</h2>
+    <p class="lede">Deep ink navy carries structure; a single burnt-copper accent carries action. The ratios below are
+      measured against the surface each token is used on. Every text pair meets WCAG 2.1 AA (4.5:1); every non-text
+      boundary meets 3:1.</p>
+
+    <h3 style="margin:var(--s-5) 0 var(--s-3)">Ink ramp</h3>
+    <div class="grid g3">
+      <div class="swatch"><div class="chip" style="background:#0B1524"></div>
+        <dl><dt>Token</dt><dd>--ink-900</dd><dt>Hex</dt><dd>#0B1524</dd><dt>Role</dt><dd>Body text, money, header and footer field</dd><dt>Ratio</dt><dd>16.81:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#13233A"></div>
+        <dl><dt>Token</dt><dd>--ink-800</dd><dt>Hex</dt><dd>#13233A</dd><dt>Role</dt><dd>Nav bar, table cell text</dd><dt>Ratio</dt><dd>14.51:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#1E3352"></div>
+        <dl><dt>Token</dt><dd>--ink-700</dd><dt>Hex</dt><dd>#1E3352</dd><dt>Role</dt><dd>Field labels, badge text</dd><dt>Ratio</dt><dd>11.68:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#33496B"></div>
+        <dl><dt>Token</dt><dd>--ink-600</dd><dt>Hex</dt><dd>#33496B</dd><dt>Role</dt><dd>Lede, table headers, metadata</dd><dt>Ratio</dt><dd>8.36:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#51657F"></div>
+        <dl><dt>Token</dt><dd>--ink-500</dd><dt>Hex</dt><dd>#51657F</dd><dt>Role</dt><dd>Hints, placeholders, currency glyph</dd><dt>Ratio</dt><dd>5.48:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#74869B"></div>
+        <dl><dt>Token</dt><dd>--ink-400</dd><dt>Hex</dt><dd>#74869B</dd><dt>Role</dt><dd>Control borders only &mdash; never text</dd><dt>Ratio</dt><dd>3.43:1 on paper (AA non-text)</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#D4DCE5"></div>
+        <dl><dt>Token</dt><dd>--ink-200</dd><dt>Hex</dt><dd>#D4DCE5</dd><dt>Role</dt><dd>Hairline rules, decorative dividers</dd><dt>Ratio</dt><dd>13.22:1 vs ink-900 text</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#E9EEF3"></div>
+        <dl><dt>Token</dt><dd>--ink-100</dd><dt>Hex</dt><dd>#E9EEF3</dd><dt>Role</dt><dd>Disabled fills, inset panels</dd><dt>Ratio</dt><dd>15.68:1 vs ink-900 text</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#F7F5F1;border-bottom:1px solid #D4DCE5"></div>
+        <dl><dt>Token</dt><dd>--paper</dd><dt>Hex</dt><dd>#F7F5F1</dd><dt>Role</dt><dd>Page field &mdash; warm, not clinical white</dd><dt>Ratio</dt><dd>base surface</dd></dl></div>
+    </div>
+
+    <h3 style="margin:var(--s-6) 0 var(--s-3)">Accent &mdash; the one decisive colour</h3>
+    <div class="grid g3">
+      <div class="swatch"><div class="chip" style="background:#A8481B"></div>
+        <dl><dt>Token</dt><dd>--accent-600</dd><dt>Hex</dt><dd>#A8481B</dd><dt>Role</dt><dd>Primary button fill, horizon rule</dd><dt>Ratio</dt><dd>5.82:1 vs white label</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#8A3A14"></div>
+        <dl><dt>Token</dt><dd>--accent-700</dd><dt>Hex</dt><dd>#8A3A14</dd><dt>Role</dt><dd>Links, eyebrows, API badges</dd><dt>Ratio</dt><dd>7.15:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#E9A178"></div>
+        <dl><dt>Token</dt><dd>--accent-200</dd><dt>Hex</dt><dd>#E9A178</dd><dt>Role</dt><dd>Accent on ink surfaces only</dd><dt>Ratio</dt><dd>8.57:1 on ink-900</dd></dl></div>
+    </div>
+
+    <h3 style="margin:var(--s-6) 0 var(--s-3)">State &mdash; used for state and nothing else</h3>
+    <div class="grid g2">
+      <div class="swatch"><div class="chip" style="background:#1B6046"></div>
+        <dl><dt>Token</dt><dd>--ok-700 / --ok-050</dd><dt>Hex</dt><dd>#1B6046 on #E4F0EA</dd><dt>Role</dt><dd>VERIFIED, COMPLETED, APPROVED, SENT, credit amounts</dd><dt>Ratio</dt><dd>6.39:1 on its tint &middot; 7.48:1 vs white</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#7A5107"></div>
+        <dl><dt>Token</dt><dd>--warn-700 / --warn-050</dd><dt>Hex</dt><dd>#7A5107 on #F8EEDA</dd><dt>Role</dt><dd>PENDING_KYC, UNDER_REVIEW, QUEUED</dd><dt>Ratio</dt><dd>6.06:1 on its tint</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#A01B22"></div>
+        <dl><dt>Token</dt><dd>--danger-700 / --danger-050</dd><dt>Hex</dt><dd>#A01B22 on #FBE7E7</dd><dt>Role</dt><dd>INSUFFICIENT_FUNDS, REJECTED, FAILED, field errors</dd><dt>Ratio</dt><dd>6.61:1 on its tint &middot; 7.21:1 on paper</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#1D4F7A"></div>
+        <dl><dt>Token</dt><dd>--info-700 / --info-050</dd><dt>Hex</dt><dd>#1D4F7A on #E4EDF5</dd><dt>Role</dt><dd>APPLIED, DISBURSED, informational notices</dd><dt>Ratio</dt><dd>7.23:1 on its tint</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#0B57D0"></div>
+        <dl><dt>Token</dt><dd>--focus</dd><dt>Hex</dt><dd>#0B57D0</dd><dt>Role</dt><dd>3px focus ring, 2px offset, on light surfaces</dd><dt>Ratio</dt><dd>5.86:1 on paper (AA non-text 3:1 exceeded)</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#8FBBFF"></div>
+        <dl><dt>Token</dt><dd>--focus-dark</dd><dt>Hex</dt><dd>#8FBBFF</dd><dt>Role</dt><dd>Focus ring inside <code class="mono">.on-dark</code> regions</dd><dt>Ratio</dt><dd>9.35:1 on ink-900</dd></dl></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-type">
+    <p class="eyebrow">02 &middot; Typography</p>
+    <h2 id="h-type">Three faces, one job each</h2>
+    <p class="lede">A system serif carries voice and hierarchy. A system sans carries interface copy. A system
+      monospace carries every number that represents money. No web font is loaded &mdash; the stacks are native, so the
+      type renders instantly and offline.</p>
+
+    <div class="grid g3" style="margin:var(--s-5) 0">
+      <div class="card"><p class="eyebrow" style="color:var(--ink-600)">Display</p>
+        <p style="font-family:var(--f-display);font-size:var(--t-28);margin:0">Horizon Bank</p>
+        <p class="spec" style="margin-top:var(--s-2)">ui-serif, Georgia, "Iowan Old Style", serif<br>-1.5% tracking, 1.15 leading</p></div>
+      <div class="card"><p class="eyebrow" style="color:var(--ink-600)">Body</p>
+        <p style="font-size:var(--t-18);margin:0">Transfer completed and recorded in the ledger.</p>
+        <p class="spec" style="margin-top:var(--s-2)">-apple-system, "Segoe UI", Roboto, sans-serif<br>1.6 leading, 70ch measure</p></div>
+      <div class="card"><p class="eyebrow" style="color:var(--ink-600)">Money</p>
+        <p class="money money--lg" style="margin:0"><span class="cur" aria-hidden="true">&#8377;</span>12,480.50</p>
+        <p class="spec" style="margin-top:var(--s-2)">ui-monospace, SFMono-Regular, Menlo<br>font-variant-numeric: tabular-nums</p></div>
+    </div>
+
+    <h3 style="margin:var(--s-6) 0 var(--s-2)">Type scale</h3>
+    <div class="card" style="padding:var(--s-4) var(--s-5)">
+      <div class="scale-row"><span class="tag">60 / 3.75r</span><span style="font-family:var(--f-money);font-size:var(--t-60);font-weight:700">1,240.00</span><span class="spec">Balance hero, desktop</span></div>
+      <div class="scale-row"><span class="tag">48 / 3r</span><span style="font-family:var(--f-display);font-size:var(--t-48)">Page title</span><span class="spec">h1 at 768px and above</span></div>
+      <div class="scale-row"><span class="tag">36 / 2.25r</span><span style="font-family:var(--f-display);font-size:var(--t-36)">Page title</span><span class="spec">h1 mobile, balance hero mobile</span></div>
+      <div class="scale-row"><span class="tag">28 / 1.75r</span><span style="font-family:var(--f-display);font-size:var(--t-28)">Section</span><span class="spec">h2</span></div>
+      <div class="scale-row"><span class="tag">22 / 1.375r</span><span style="font-family:var(--f-display);font-size:var(--t-22)">Card title</span><span class="spec">h3</span></div>
+      <div class="scale-row"><span class="tag">18 / 1.125r</span><span style="font-size:var(--t-18)">Lede and row money</span><span class="spec">h4, .lede, .money--md</span></div>
+      <div class="scale-row"><span class="tag">16 / 1r</span><span>Body and every form input</span><span class="spec">base &mdash; never below 16px in an input, which would zoom the viewport on iOS</span></div>
+      <div class="scale-row"><span class="tag">14 / .875r</span><span style="font-size:var(--t-14)">Table cell, button label</span><span class="spec">.tbl, .btn</span></div>
+      <div class="scale-row"><span class="tag">13 / .8125r</span><span style="font-size:var(--t-13)">Hint, timestamp, metadata</span><span class="spec">.hint, .ts, .small</span></div>
+      <div class="scale-row" style="border-bottom:0"><span class="tag">12 / .75r</span><span style="font-size:var(--t-12);letter-spacing:.1em;text-transform:uppercase;font-weight:700">Eyebrow &middot; label &middot; badge</span><span class="spec">tracked +10%, uppercase</span></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-space">
+    <p class="eyebrow">03 &middot; Space, radius, elevation, motion</p>
+    <h2 id="h-space">Structural tokens</h2>
+    <div class="grid g2" style="margin-top:var(--s-4)">
+      <div class="card">
+        <h3>Spacing &mdash; 4px base</h3>
+        <table class="tbl" style="margin-top:var(--s-3)">
+          <caption class="sr-only">Spacing scale</caption>
+          <thead><tr><th scope="col">Token</th><th scope="col">Value</th><th scope="col">Typical use</th><th scope="col">Scale</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Token" class="mono">--s-1</td><td data-label="Value" class="mono">4px</td><td data-label="Use">Icon gap</td><td data-label="Scale"><div class="sp-demo" style="width:4px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-2</td><td data-label="Value" class="mono">8px</td><td data-label="Use">Label to control</td><td data-label="Scale"><div class="sp-demo" style="width:8px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-3</td><td data-label="Value" class="mono">12px</td><td data-label="Use">Cell padding</td><td data-label="Scale"><div class="sp-demo" style="width:12px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-4</td><td data-label="Value" class="mono">16px</td><td data-label="Use">Field rhythm, grid gap</td><td data-label="Scale"><div class="sp-demo" style="width:16px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-5</td><td data-label="Value" class="mono">24px</td><td data-label="Use">Card padding</td><td data-label="Scale"><div class="sp-demo" style="width:24px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-6</td><td data-label="Value" class="mono">32px</td><td data-label="Use">Block separation</td><td data-label="Scale"><div class="sp-demo" style="width:32px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-7</td><td data-label="Value" class="mono">48px</td><td data-label="Use">Empty-state padding</td><td data-label="Scale"><div class="sp-demo" style="width:48px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-8</td><td data-label="Value" class="mono">64px</td><td data-label="Use">Section separation</td><td data-label="Scale"><div class="sp-demo" style="width:64px"></div></td></tr>
+            <tr><td data-label="Token" class="mono">--s-9</td><td data-label="Value" class="mono">96px</td><td data-label="Use">Page tail</td><td data-label="Scale"><div class="sp-demo" style="width:96px"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3>Radius</h3>
+          <p class="small muted">Deliberately tight. Nothing about a ledger is soft.</p>
+          <div class="row" style="margin-top:var(--s-3)">
+            <span style="display:inline-block;width:72px;height:48px;background:var(--ink-100);border:1px solid var(--ink-400);border-radius:2px"></span>
+            <span class="spec">--r-1 &middot; 2px &middot; inputs, inner marks</span>
+          </div>
+          <div class="row" style="margin-top:var(--s-3)">
+            <span style="display:inline-block;width:72px;height:48px;background:var(--ink-100);border:1px solid var(--ink-400);border-radius:4px"></span>
+            <span class="spec">--r-2 &middot; 4px &middot; cards, buttons, tables</span>
+          </div>
+          <div class="row" style="margin-top:var(--s-3)">
+            <span style="display:inline-block;width:72px;height:38px;background:var(--ink-100);border:1px solid var(--ink-400);border-radius:999px"></span>
+            <span class="spec">--r-pill &middot; badges and segmented switches only</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Elevation</h3>
+          <p class="small muted">Two levels. Structure comes from rules, not from stacked shadows.</p>
+          <div class="row" style="margin-top:var(--s-3);align-items:stretch">
+            <span style="flex:1;min-width:120px;padding:var(--s-3);background:var(--surface);border:1px solid var(--ink-200);box-shadow:var(--e-1)" class="spec">--e-1 &middot; resting card</span>
+            <span style="flex:1;min-width:120px;padding:var(--s-3);background:var(--surface);border:1px solid var(--ink-200);box-shadow:var(--e-2)" class="spec">--e-2 &middot; dialog and confirm panel</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Motion</h3>
+          <p class="small muted">Short and functional. Money never animates into place.</p>
+          <p class="spec">--m-fast 120ms (hover, focus) &middot; --m-base 200ms (panel reveal)<br>
+             --m-ease cubic-bezier(.2,.6,.2,1)<br>
+             All motion collapses under <code class="mono">prefers-reduced-motion: reduce</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-money">
+    <p class="eyebrow">04 &middot; Money</p>
+    <h2 id="h-money">The money component</h2>
+    <div class="alert a-info" role="note">
+      <h3>Contract: money is a decimal string</h3>
+      <p>Every money field arrives as a quoted string such as <code class="mono">"1250.00"</code> or
+        <code class="mono">"0.00"</code> and is rendered by <code class="mono">formatMoney()</code>, which inserts group
+        separators and pads to exactly two decimal places by string manipulation alone. The browser performs no
+        arithmetic on money &mdash; no <code class="mono">parseFloat</code>, no <code class="mono">Number()</code>
+        (NFR-01, DD-05, DD-16). The currency glyph is decorative and hidden from assistive technology; the currency is
+        announced in visually hidden text.</p>
+    </div>
+    <div class="grid g3">
+      <div class="card card--accent">
+        <p class="eyebrow" style="color:var(--ink-600)">Available balance &middot; .money--xl</p>
+        <p class="money money--xl" data-testid="account-balance"><span class="cur" aria-hidden="true">&#8377;</span><span class="sr-only">Indian rupees </span>115,471.11</p>
+        <p class="small muted" style="margin-top:var(--s-2)">API value <code class="mono">balance: "115471.11"</code></p>
+      </div>
+      <div class="card">
+        <p class="eyebrow" style="color:var(--ink-600)">Zero balance &mdash; a new account</p>
+        <p class="money money--xl"><span class="cur" aria-hidden="true">&#8377;</span><span class="sr-only">Indian rupees </span>0.00</p>
+        <p class="small muted" style="margin-top:var(--s-2)">Never blank, never a dash. <code class="mono">balance: "0.00"</code></p>
+      </div>
+      <div class="card">
+        <p class="eyebrow" style="color:var(--ink-600)">Direction is text first, colour second</p>
+        <p style="margin:0 0 var(--s-2)"><span class="badge b-danger">Debit</span> <span class="money money--md">&minus;<span class="cur" aria-hidden="true">&#8377;</span>250.00</span></p>
+        <p style="margin:0"><span class="badge b-ok">Credit</span> <span class="money money--md money--credit">+<span class="cur" aria-hidden="true">&#8377;</span>1,500.00</span></p>
+        <p class="small muted" style="margin-top:var(--s-2)">Sign glyph, then word, then colour. Colour alone never carries meaning.</p>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:var(--s-4)">
+      <table class="tbl">
+        <caption>Column alignment proof &mdash; tabular figures at four magnitudes</caption>
+        <thead><tr><th scope="col">Account</th><th scope="col" class="num">Balance</th><th scope="col" class="num">Last movement</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Account" class="mono">HZN0000000103</td><td data-label="Balance" class="num money money--sm">9.05</td><td data-label="Last movement" class="num money money--sm">&minus;1.00</td></tr>
+          <tr><td data-label="Account" class="mono">HZN0000000202</td><td data-label="Balance" class="num money money--sm">148.20</td><td data-label="Last movement" class="num money money--sm money--credit">+120.00</td></tr>
+          <tr><td data-label="Account" class="mono">HZN0000000101</td><td data-label="Balance" class="num money money--sm">115,471.11</td><td data-label="Last movement" class="num money money--sm">&minus;250.00</td></tr>
+          <tr><td data-label="Account" class="mono">HZN0000000305</td><td data-label="Balance" class="num money money--sm">306,912.40</td><td data-label="Last movement" class="num money money--sm money--credit">+5,000.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-controls">
+    <p class="eyebrow">05 &middot; Components</p>
+    <h2 id="h-controls">Buttons and inputs</h2>
+    <div class="grid g2" style="margin-top:var(--s-4)">
+      <div class="card">
+        <h3>Buttons</h3>
+        <p class="small muted">Minimum target 44&times;44px at every breakpoint. Every action carries its API call.</p>
+        <div class="row" style="margin-top:var(--s-3)">
+          <button type="button" class="btn btn--primary">Confirm transfer</button>
+          <button type="button" class="btn btn--dark">Open savings account</button>
+        </div>
+        <div class="row" style="margin-top:var(--s-3)">
+          <button type="button" class="btn">Cancel</button>
+          <button type="button" class="btn btn--danger">Remove payee</button>
+          <button type="button" class="btn btn--ghost">View statement</button>
+        </div>
+        <div class="row" style="margin-top:var(--s-3)">
+          <button type="button" class="btn btn--primary" disabled>Confirm (disabled)</button>
+          <button type="button" class="btn btn--sm">Small action</button>
+        </div>
+        <div class="api-row"><code class="api">POST /api/v1/transfers</code><code class="api">POST /api/v1/accounts</code><code class="api">DELETE /api/v1/beneficiaries/{id}</code></div>
+      </div>
+      <div class="card">
+        <h3>Input states</h3>
+        <p class="small muted">Toggle the state to see the resting, hint and error treatments. The error message is
+          bound to the input with <code class="mono">aria-describedby</code>, and the input carries
+          <code class="mono">aria-invalid</code>.</p>
+        <div class="switch" role="group" aria-label="Input state" data-testid="state-switcher" style="margin-top:var(--s-3)">
+          <button type="button" aria-pressed="true" data-state="rest">Resting</button>
+          <button type="button" aria-pressed="false" data-state="error">Error</button>
+          <button type="button" aria-pressed="false" data-state="disabled">Disabled</button>
+        </div>
+        <div class="field">
+          <label for="demo-amount">Amount <span class="opt">(2 decimal places)</span></label>
+          <input id="demo-amount" class="mono" type="text" inputmode="decimal" value="250.00"
+                 aria-describedby="demo-amount-hint">
+          <p class="hint" id="demo-amount-hint">Enter the exact amount to send, for example 250.00.</p>
+          <p class="err hidden" id="demo-amount-err">Enter an amount with at most 2 decimal places.</p>
+        </div>
+        <div class="field">
+          <label for="demo-select">Source account</label>
+          <select id="demo-select">
+            <option>Everyday Savings &mdash; HZN0000000101</option>
+            <option>Reserve Savings &mdash; HZN0000000102</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-badges">
+    <p class="eyebrow">05.1 &middot; Components</p>
+    <h2 id="h-badges">Status badges &mdash; every enum in the system</h2>
+    <p class="lede">Each badge states its status in words, carries a shape marker, and only then uses colour. A screen
+      reader reads the status text; a monochrome print still distinguishes it.</p>
+    <div class="grid g2" style="margin-top:var(--s-4)">
+      <div class="card">
+        <h3>Customer &amp; KYC</h3>
+        <p class="row" style="margin-top:var(--s-3)">
+          <span class="badge b-warn">PENDING_KYC</span><span class="badge b-ok">ACTIVE</span>
+          <span class="badge b-danger">SUSPENDED</span></p>
+        <p class="row"><span class="badge b-warn">KYC PENDING</span><span class="badge b-ok">KYC VERIFIED</span>
+          <span class="badge b-danger">KYC REJECTED</span></p>
+      </div>
+      <div class="card">
+        <h3>Account &amp; transfer</h3>
+        <p class="row" style="margin-top:var(--s-3)">
+          <span class="badge b-ok">ACTIVE</span><span class="badge b-neutral">CLOSED</span></p>
+        <p class="row"><span class="badge b-ok">COMPLETED</span><span class="badge b-danger">FAILED</span>
+          <span class="badge b-ok">CREDIT</span><span class="badge b-danger">DEBIT</span></p>
+      </div>
+      <div class="card">
+        <h3>Loan application</h3>
+        <p class="row" style="margin-top:var(--s-3)">
+          <span class="badge b-info">APPLIED</span><span class="badge b-warn">UNDER_REVIEW</span>
+          <span class="badge b-ok">APPROVED</span><span class="badge b-danger">REJECTED</span>
+          <span class="badge b-info">DISBURSED</span></p>
+        <p class="small muted">Legal transitions only: APPLIED &rarr; UNDER_REVIEW &rarr; APPROVED or REJECTED, and
+          APPROVED &rarr; DISBURSED. REJECTED and DISBURSED are terminal.</p>
+      </div>
+      <div class="card">
+        <h3>Notification</h3>
+        <p class="row" style="margin-top:var(--s-3)">
+          <span class="badge b-warn">QUEUED</span><span class="badge b-ok">SENT</span>
+          <span class="badge b-danger">FAILED</span></p>
+        <p class="row"><span class="badge b-neutral">EMAIL</span><span class="badge b-neutral">SMS</span>
+          <span class="badge b-accent">ADMIN</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-feedback">
+    <p class="eyebrow">05.2 &middot; Components</p>
+    <h2 id="h-feedback">Feedback: alerts and the live region</h2>
+    <p class="lede">Outcome messages are never a bare colour change. Each carries a heading naming the outcome, a
+      sentence of consequence, and where relevant the machine error code from the uniform error envelope.</p>
+
+    <div class="stack" style="margin-top:var(--s-4)">
+      <div class="alert a-ok" role="status">
+        <h3>Transfer completed</h3>
+        <p>&#8377;250.00 sent to HZN0000000202. Reference TRF-8842-0193. Your available balance is now &#8377;115,221.11.</p>
+      </div>
+      <div class="alert a-danger" role="alert">
+        <h3>Transfer declined &mdash; insufficient funds</h3>
+        <p>Your available balance is lower than the requested amount. No money has left your account and no transaction
+          was recorded against your balance. <span class="mono">error.code = INSUFFICIENT_FUNDS</span> &middot;
+          <span class="mono">correlation_id = 01J8ZQK7M2C4X9N0RT5VB3DHYE</span></p>
+      </div>
+      <div class="alert a-warn" role="status">
+        <h3>Verification still pending</h3>
+        <p>Your identity check has not completed, so sign-in is not yet available.
+          <span class="mono">error.code = PENDING_KYC</span> &middot; HTTP 403, not 401.</p>
+      </div>
+      <div class="alert a-info" role="note">
+        <h3>This ledger is append-only</h3>
+        <p>Audit entries cannot be edited or deleted by anyone, including administrators. There is no edit or delete
+          control on that screen by design (NFR-02).</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--s-4)">
+      <h3>Live region</h3>
+      <p class="small muted">Every outcome that moves money is announced. The region exists in the DOM before the
+        action, so assistive technology observes the mutation rather than missing it.</p>
+      <div class="row" style="margin-top:var(--s-3)">
+        <button type="button" class="btn btn--primary" id="announce-ok">Announce success</button>
+        <button type="button" class="btn btn--danger" id="announce-err">Announce failure</button>
+      </div>
+      <p aria-live="polite" aria-atomic="true" data-testid="live-region" id="live"
+         style="margin-top:var(--s-3);min-height:1.6em;font-weight:700;color:var(--ink-700)">Idle &mdash; nothing announced yet.</p>
+      <div class="api-row"><code class="api">aria-live="polite" on success</code><code class="api">role="alert" on failure</code></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-collections">
+    <p class="eyebrow">05.3 &middot; Components</p>
+    <h2 id="h-collections">Collections: table, pagination, empty, skeleton</h2>
+    <p class="lede">Tables are the primary administrator surface. Below 768px every table reflows to a stacked card
+      list using each cell&rsquo;s <code class="mono">data-label</code>, so nothing scrolls sideways on a phone.</p>
+
+    <div class="switch" role="group" aria-label="Collection state" data-testid="collection-switcher" style="margin-top:var(--s-4)">
+      <button type="button" aria-pressed="true" data-view="data">Populated</button>
+      <button type="button" aria-pressed="false" data-view="empty">Empty</button>
+      <button type="button" aria-pressed="false" data-view="loading">Loading</button>
+    </div>
+
+    <div id="view-data">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <caption>Statement &mdash; Everyday Savings HZN0000000101</caption>
+          <thead><tr>
+            <th scope="col">Posted</th><th scope="col">Description</th><th scope="col">Direction</th>
+            <th scope="col" class="num">Amount</th><th scope="col" class="num">Balance after</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Posted" class="ts">2026-08-19 11:02:44</td><td data-label="Description">Transfer to HZN0000000202</td>
+              <td data-label="Direction"><span class="badge b-danger">DEBIT</span></td>
+              <td data-label="Amount" class="num money money--sm">&minus;250.00</td>
+              <td data-label="Balance after" class="num money money--sm">115,471.11</td></tr>
+            <tr><td data-label="Posted" class="ts">2026-08-18 16:20:10</td><td data-label="Description">Loan disbursement</td>
+              <td data-label="Direction"><span class="badge b-ok">CREDIT</span></td>
+              <td data-label="Amount" class="num money money--sm money--credit">+5,000.00</td>
+              <td data-label="Balance after" class="num money money--sm">115,721.11</td></tr>
+          </tbody>
+        </table>
+        <div class="pager">
+          <p>Showing 1&ndash;2 of 23 &middot; page 1 of 2 &middot; size 20</p>
+          <div class="row">
+            <button type="button" class="btn btn--sm" disabled>Previous</button>
+            <button type="button" class="btn btn--sm">Next</button>
+          </div>
+        </div>
+      </div>
+      <div class="api-row"><code class="api">GET /api/v1/accounts/{account_id}/statements?page=1&amp;size=20</code></div>
+    </div>
+
+    <div id="view-empty" class="hidden">
+      <div class="empty">
+        <h3>No transactions yet</h3>
+        <p>This account has not moved any money. When you send or receive a transfer it will appear here, most recent
+          first.</p>
+        <a class="btn btn--primary" href="E6-S4.html">Make a transfer</a>
+      </div>
+      <p class="small muted" style="margin-top:var(--s-3)">An empty collection is <strong>200 with an empty page</strong>,
+        never a 404 and never an error (edge case E-20).</p>
+    </div>
+
+    <div id="view-loading" class="hidden" aria-busy="true">
+      <div class="tbl-wrap" style="padding:var(--s-4)">
+        <div class="skel" style="width:34%;height:18px"></div>
+        <div class="skel" style="width:100%;margin-top:var(--s-4)"></div>
+        <div class="skel" style="width:92%;margin-top:var(--s-3)"></div>
+        <div class="skel" style="width:78%;margin-top:var(--s-3)"></div>
+        <div class="skel" style="width:88%;margin-top:var(--s-3)"></div>
+      </div>
+      <p class="sr-only" role="status">Loading statement</p>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-a11y">
+    <p class="eyebrow">06 &middot; Rules</p>
+    <h2 id="h-a11y">Non-negotiables baked into the system</h2>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <caption>System rules every screen inherits</caption>
+        <thead><tr><th scope="col">Rule</th><th scope="col">Implementation</th><th scope="col">Source</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Rule">Money never becomes a number</td><td data-label="Implementation">Decimal strings rendered by formatMoney; no parseFloat, no Number()</td><td data-label="Source" class="mono">NFR-01 / DD-05</td></tr>
+          <tr><td data-label="Rule">Landmarks on every screen</td><td data-label="Implementation">header, nav, main, footer; exactly one h1</td><td data-label="Source" class="mono">E7-S3 AC4</td></tr>
+          <tr><td data-label="Rule">Visible focus, never the browser default</td><td data-label="Implementation">3px --focus ring at 2px offset, --focus-dark inside ink regions</td><td data-label="Source" class="mono">WCAG 2.4.7</td></tr>
+          <tr><td data-label="Rule">Labels and errors are programmatic</td><td data-label="Implementation">label[for], aria-describedby, aria-invalid</td><td data-label="Source" class="mono">WCAG 3.3.1 / 3.3.2</td></tr>
+          <tr><td data-label="Rule">Outcome announced to assistive tech</td><td data-label="Implementation">aria-live="polite" on success, role="alert" on failure</td><td data-label="Source" class="mono">E6-S4 AC3</td></tr>
+          <tr><td data-label="Rule">Status never colour-only</td><td data-label="Implementation">Badge text plus dot marker plus colour</td><td data-label="Source" class="mono">WCAG 1.4.1</td></tr>
+          <tr><td data-label="Rule">No horizontal scroll at 375px</td><td data-label="Implementation">Tables reflow to stacked cards below 768px</td><td data-label="Source" class="mono">E7-S3 AC1</td></tr>
+          <tr><td data-label="Rule">No invented business rules</td><td data-label="Implementation">Nothing the brief did not state: no ceiling on an amount, no saved payee required to send money, no date-of-birth check, no automatic assessment of a loan</td><td data-label="Source" class="mono">DD-13 / DD-14</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
 </main>
-<div class="spec"><strong>Mockup E6-S1</strong> &mdash; Tokens consumed by every other mockup. Breakpoints 375 / 768 / 1440. WCAG 2.1 AA:
-contrast verified on all text and every money value, visible focus rings, semantic landmarks.</div>
-</body></html>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; ClaudeForge Banking Suite &middot; static design mockup, synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Token block v1.0 is reproduced byte-identically in
+      <a href="E6-S2.html">E6-S2</a>, <a href="E6-S3.html">E6-S3</a>, <a href="E6-S4.html">E6-S4</a>,
+      <a href="E6-S5.html">E6-S5</a>, <a href="E7-S1.html">E7-S1</a>, <a href="E7-S2.html">E7-S2</a>,
+      <a href="E7-S3.html">E7-S3</a> and <a href="E9-S1.html">E9-S1</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var sw = document.querySelector('[data-testid="state-switcher"]');
+  var input = document.getElementById('demo-amount');
+  var hint = document.getElementById('demo-amount-hint');
+  var err = document.getElementById('demo-amount-err');
+  sw.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-state]');
+    if (!b) return;
+    sw.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    var s = b.dataset.state;
+    input.disabled = (s === 'disabled');
+    if (s === 'error') {
+      input.value = '250.005';
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', 'demo-amount-hint demo-amount-err');
+      err.classList.remove('hidden');
+      hint.classList.add('hidden');
+    } else {
+      input.value = '250.00';
+      input.removeAttribute('aria-invalid');
+      input.setAttribute('aria-describedby', 'demo-amount-hint');
+      err.classList.add('hidden');
+      hint.classList.remove('hidden');
+    }
+  });
+
+  var cs = document.querySelector('[data-testid="collection-switcher"]');
+  cs.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-view]');
+    if (!b) return;
+    cs.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    ['data', 'empty', 'loading'].forEach(function (v) {
+      document.getElementById('view-' + v).classList.toggle('hidden', v !== b.dataset.view);
+    });
+  });
+
+  var live = document.getElementById('live');
+  document.getElementById('announce-ok').addEventListener('click', function () {
+    live.textContent = 'Transfer completed. 250.00 rupees sent to account HZN0000000202. Reference TRF-8842-0193.';
+  });
+  document.getElementById('announce-err').addEventListener('click', function () {
+    live.textContent = 'Transfer declined. Insufficient funds. No money left your account.';
+  });
+})();
+</script>
+</body>
+</html>
