@@ -1,169 +1,502 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Register and KYC — Horizon Bank mockup (E6-S2)</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E6-S2 Register, Identity Check &amp; Sign In</title>
+<!--
+  E6-S2 — onboarding (AC-01). Register -> KYC -> Login.
+  Contract source: api-contracts.md §2. Field names match exactly:
+    register: email, password, full_name, date_of_birth, phone
+    kyc:      email, document_type, document_number  -> kyc_status, customer_status, stub_reason, verified_at
+    login:    email, password -> access_token, token_type, expires_in, role, customer_id
+  Critical state: a pre-KYC sign-in returns HTTP 403 with error.code PENDING_KYC — NOT 401 (E-09 / DR-06).
+  DD-14 #3 — date_of_birth is captured as profile data only. Nothing on this screen validates an age,
+  and no eligibility of any kind is evaluated here.
+  Synthetic data only.
+-->
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
 :root{
-  --ink:#0B1F33;--ink-2:#1C3A57;--canvas:#F1F4F8;--surface:#FFFFFF;--line:#D9E1EA;
-  --muted:#54677A;--accent:#A2541F;--accent-soft:#FAF0E7;
-  --ok:#186B41;--ok-soft:#E7F3EC;--warn:#7C5200;--warn-soft:#FCF2DF;
-  --danger:#A5251B;--danger-soft:#FCEBE9;
-  --r:10px;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
 }
-body{font-family:var(--sans);background:var(--canvas);color:var(--ink);line-height:1.5;
-  -webkit-font-smoothing:antialiased}
-.money{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-.01em}
-a{color:var(--accent)}
-/* ---------- chrome ---------- */
-.top{background:var(--ink);color:#fff;padding:0 clamp(16px,4vw,32px)}
-.top-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:24px;
-  min-height:60px;flex-wrap:wrap}
-.mark{font-family:var(--serif);font-size:19px;letter-spacing:.02em;padding:8px 0}
-.mark span{color:#D9A06B}
-nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
-nav a{color:#C3D2E0;text-decoration:none;padding:8px 12px;border-radius:6px;font-size:14px}
-nav a[aria-current="page"]{background:rgba(255,255,255,.12);color:#fff}
-nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
-a:focus-visible{outline:3px solid #D9A06B;outline-offset:2px}
-main{max-width:1200px;margin:0 auto;padding:clamp(20px,4vw,36px) clamp(16px,4vw,32px) 64px}
-h1{font-family:var(--serif);font-size:clamp(24px,4vw,31px);font-weight:600;letter-spacing:-.01em}
-h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
-  font-weight:600;margin-bottom:12px}
-.sub{color:var(--muted);margin-top:6px;font-size:15px;max-width:62ch}
-.head{margin-bottom:28px}
-/* ---------- surfaces ---------- */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
-.grid{display:grid;gap:16px}
-@media(min-width:768px){.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:1100px){.split{grid-template-columns:1.6fr 1fr}}
-/* ---------- balance ---------- */
-.bal{font-size:clamp(30px,6vw,40px);font-weight:600;letter-spacing:-.02em;margin:6px 0 2px}
-.acct{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-/* ---------- pills ---------- */
-.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-  padding:4px 10px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
-.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.p-ok{background:var(--ok-soft);color:var(--ok)}
-.p-warn{background:var(--warn-soft);color:var(--warn)}
-.p-bad{background:var(--danger-soft);color:var(--danger)}
-.p-neutral{background:#EDF1F6;color:var(--ink-2)}
-/* ---------- table ---------- */
-.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
-table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
-  color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line);background:#FAFBFD}
-td{padding:13px 16px;border-bottom:1px solid #EEF2F6}
-tr:last-child td{border-bottom:0}
-td.num{text-align:right;font-variant-numeric:tabular-nums}
-th.num{text-align:right}
-.debit{color:var(--danger)}
-.credit{color:var(--ok)}
-/* ---------- forms ---------- */
-label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
-.hint{font-size:12.5px;color:var(--muted);font-weight:400;margin-top:5px}
-input,select,textarea{width:100%;padding:11px 13px;border:1px solid #B9C6D4;border-radius:8px;
-  font:inherit;background:#fff;color:var(--ink)}
-input:focus,select:focus,textarea:focus{border-color:var(--ink-2)}
-.field{margin-bottom:18px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;
-  border-radius:8px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-ghost{background:#fff;border-color:#B9C6D4;color:var(--ink)}
-.btn-ok{background:var(--ok);color:#fff}
-.btn-bad{background:#fff;border-color:var(--danger);color:var(--danger)}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-/* ---------- messages ---------- */
-.note{border-left:3px solid;padding:13px 16px;border-radius:0 8px 8px 0;font-size:14px}
-.n-ok{background:var(--ok-soft);border-color:var(--ok)}
-.n-bad{background:var(--danger-soft);border-color:var(--danger)}
-.n-info{background:var(--accent-soft);border-color:var(--accent)}
-.err{color:var(--danger);font-size:13px;margin-top:6px;font-weight:500}
-/* ---------- timeline ---------- */
-.tl{list-style:none;position:relative;padding-left:26px}
-.tl::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
-.tl li{position:relative;padding:0 0 22px}
-.tl li::before{content:"";position:absolute;left:-24px;top:5px;width:11px;height:11px;
-  border-radius:50%;background:#fff;border:2px solid var(--line)}
-.tl li.done::before{background:var(--ok);border-color:var(--ok)}
-.tl li.now::before{background:var(--accent);border-color:var(--accent)}
-.tl .when{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-.tl .what{font-weight:600;font-size:14.5px}
-.tl .why{font-size:13.5px;color:var(--muted);margin-top:3px}
-/* ---------- misc ---------- */
-.kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;
-  border-bottom:1px solid #EEF2F6;font-size:14px}
-.kv:last-child{border:0}
-.kv dt{color:var(--muted)}
-.kv dd{font-weight:600;font-variant-numeric:tabular-nums}
-.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:14px 16px;
-  font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);flex-wrap:wrap}
-.pager button{padding:7px 12px;border:1px solid #B9C6D4;background:#fff;border-radius:7px;
-  font:inherit;cursor:pointer}
-.spec{max-width:1200px;margin:0 auto 0;padding:16px clamp(16px,4vw,32px) 40px;
-  font-size:13px;color:var(--muted)}
-.spec code{background:#E7EDF4;padding:1px 5px;border-radius:4px;font-size:12px;color:var(--ink-2)}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.api{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
-  background:#E7EDF4;color:#1C3A57;border:1px solid #D9E1EA;border-radius:5px;padding:2px 6px;
-  margin:4px 0 0 8px;vertical-align:middle;white-space:nowrap;font-weight:600}
-.api-note{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
-  color:#54677A;margin-top:6px}
-</style></head><body>
-<a class="sr" href="#main">Skip to main content</a>
-<header class="top" data-testid="app-header"><div class="top-in">
-  <div class="mark">Horizon<span>&#183;</span>Bank</div>
-  <nav aria-label="Primary" data-testid="app-nav"><a href="#">Dashboard</a><a href="#">Transfer</a><a href="#">Beneficiaries</a><a href="#">Loans</a></nav>
-</div></header>
-<main id="main" data-testid="app-main">
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
 
-<div class="head"><h1>Open your account</h1>
-<p class="sub">Registration, the KYC stub, then login activation. Three steps, one screen family.</p></div>
+/* page-specific: tabbed onboarding */
+.tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:2px solid var(--ink-400);margin:0 0 var(--s-5);padding:0;list-style:none}
+.tabs button{appearance:none;border:1px solid transparent;border-bottom:0;background:transparent;padding:12px var(--s-4);min-height:48px;
+ font:700 var(--t-13)/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600);cursor:pointer;border-radius:var(--r-2) var(--r-2) 0 0}
+.tabs button:hover{background:var(--ink-100);color:var(--ink-800)}
+.tabs button[aria-selected="true"]{background:var(--surface);border-color:var(--ink-400);color:var(--ink-900);box-shadow:inset 0 3px 0 var(--accent-600);margin-bottom:-2px}
+.step{display:flex;align-items:center;gap:var(--s-2);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500)}
+.step b{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--ink-900);color:var(--paper);font-size:11px}
+.form-col{max-width:34rem}
+.rail{border-left:3px solid var(--accent-600);padding-left:var(--s-4)}
+</style>
+</head>
+<body>
 
-<div class="grid split" style="gap:20px">
-  <div class="card">
-    <h2>Step 1 &mdash; Your details</h2>
-    <div class="field"><label for="n">Full name</label><input id="n" name="full_name" data-testid="register-full-name" value="Priya Raman"></div>
-    <div class="field"><label for="e">Email</label><input id="e" name="email" type="email" data-testid="register-email" value="priya.raman@example.test">
-      <p class="hint">Used to sign in. Must be unique.</p></div>
-    <div class="field"><label for="dob">Date of birth</label><input id="dob" name="date_of_birth" type="date" data-testid="register-date-of-birth" value="1991-04-12">
-      <p class="hint">Held as profile information only. No eligibility check is applied to it.</p></div>
-    <div class="field"><label for="p">Password</label><input id="p" name="password" type="password" data-testid="register-password" value="············">
-      <p class="hint">At least 12 characters. Stored hashed; never written to a log.</p></div>
-
-    <h2 style="margin-top:28px">Step 2 &mdash; Identity check</h2>
-    <div class="field"><label for="dt">Document type</label>
-      <select id="dt" name="document_type" data-testid="kyc-document-type"><option>Passport</option><option>National ID</option><option>Driving licence</option></select></div>
-    <div class="field"><label for="dn">Document number</label><input id="dn" name="document_number" data-testid="kyc-document-number" value="P4471902">
-      <p class="hint">Verification is stubbed. The number is redacted in logs and never returned in full.</p></div>
-    <div class="row"><button class="btn btn-primary" data-testid="kyc-submit">Submit and verify</button><code class="api">POST /api/v1/auth/kyc</code>
-      <button class="btn btn-ghost" data-testid="register-submit">Save for later</button><code class="api">POST /api/v1/auth/register</code></div>
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Bank</em></a>
+    <p class="who" style="margin:0">Not signed in</p>
   </div>
+</header>
 
-  <div>
-    <div class="card" style="margin-bottom:16px">
-      <h2>Progress</h2>
-      <ol class="tl" style="margin-top:4px">
-        <li class="done"><p class="what">Details captured</p><p class="when">10:14 UTC</p></li>
-        <li class="now"><p class="what">Identity check</p><p class="why">Awaiting stub verdict</p></li>
-        <li><p class="what">Login activated</p><p class="why">Unlocks after verification</p></li>
-      </ol>
-    </div>
-    <div class="card">
-      <h2>Sign in</h2>
-      <div class="field"><label for="le">Email</label><input id="le" name="email" type="email" data-testid="login-email"></div>
-      <div class="field"><label for="lp">Password</label><input id="lp" name="password" type="password" data-testid="login-password"></div>
-      <button class="btn btn-primary" style="width:100%" data-testid="login-submit">Sign in</button><code class="api">POST /api/v1/auth/login</code><span class="api-note">403 PENDING_KYC on an unverified customer &mdash; distinct from 401.</span>
-      <div class="note n-bad" role="alert" style="margin-top:16px">
-        <strong>Identity check pending.</strong> Your account is not active yet, so sign-in is
-        unavailable. This is reported separately from an incorrect password.</div>
-    </div>
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html" aria-current="page">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html">E9-S1 Verification map</a></li>
+    </ul>
   </div>
-</div>
+</nav>
 
+<main class="wrap" id="main" data-testid="app-main">
+  <p class="eyebrow">E6-S2 &middot; AC-01 onboarding</p>
+  <h1>Open your account with Horizon.</h1>
+  <p class="lede">Three steps: create your credentials, complete the identity check, then sign in. You cannot sign in
+    until the identity check has verified &mdash; and we say so plainly rather than pretending your password is wrong.</p>
+
+  <ul class="tabs" role="tablist" aria-label="Onboarding steps" data-testid="onboarding-tabs">
+    <li role="presentation"><button role="tab" id="tab-register" aria-controls="panel-register" aria-selected="true" tabindex="0">1 &middot; Register</button></li>
+    <li role="presentation"><button role="tab" id="tab-kyc" aria-controls="panel-kyc" aria-selected="false" tabindex="-1">2 &middot; Identity check</button></li>
+    <li role="presentation"><button role="tab" id="tab-login" aria-controls="panel-login" aria-selected="false" tabindex="-1">3 &middot; Sign in</button></li>
+  </ul>
+
+  <!-- ============================ REGISTER ============================ -->
+  <section role="tabpanel" id="panel-register" aria-labelledby="tab-register" tabindex="0">
+    <div class="grid g2" style="align-items:start">
+      <div class="card card--accent form-col">
+        <p class="step"><b>1</b> Create your credentials</p>
+        <h2 style="margin:var(--s-3) 0 var(--s-2)">Register</h2>
+        <p class="small muted">Your account opens in status <span class="badge b-warn">PENDING_KYC</span> until the
+          identity check completes.</p>
+
+        <div class="switch" role="group" aria-label="Simulated response for registration" style="margin-top:var(--s-4)">
+          <button type="button" aria-pressed="true" data-sim="register" data-case="201">201 Created</button>
+          <button type="button" aria-pressed="false" data-sim="register" data-case="409">409 Duplicate email</button>
+        </div>
+
+        <form id="register-form" data-testid="register-form" novalidate>
+          <div class="field">
+            <label for="register-email">Email address</label>
+            <input type="email" id="register-email" name="email" data-testid="register-email"
+                   autocomplete="email" value="amara.okonjo@example.invalid" aria-describedby="register-email-hint">
+            <p class="hint" id="register-email-hint">This becomes your sign-in identifier.</p>
+            <p class="err hidden" id="register-email-err" data-testid="register-error-email">That email address is already registered. Sign in instead, or use a different address.</p>
+          </div>
+          <div class="field">
+            <label for="register-password">Password</label>
+            <input type="password" id="register-password" name="password" data-testid="register-password"
+                   autocomplete="new-password" value="correct-horse-battery" aria-describedby="register-password-hint">
+            <p class="hint" id="register-password-hint">12 to 128 characters. Hashed with Argon2id and never shown again.</p>
+          </div>
+          <div class="field">
+            <label for="register-full-name">Full name</label>
+            <input type="text" id="register-full-name" name="full_name" data-testid="register-full-name"
+                   autocomplete="name" value="Amara Okonjo">
+          </div>
+          <div class="field">
+            <label for="register-date-of-birth">Date of birth</label>
+            <input type="date" id="register-date-of-birth" name="date_of_birth" data-testid="register-date-of-birth"
+                   value="1991-04-22" aria-describedby="register-dob-hint">
+            <p class="hint" id="register-dob-hint">Held on your profile. It is not checked against any threshold.</p>
+          </div>
+          <div class="field">
+            <label for="register-phone">Mobile number <span class="opt">(optional)</span></label>
+            <input type="text" id="register-phone" name="phone" data-testid="register-phone" class="mono"
+                   autocomplete="tel" value="+91-90000-00001">
+          </div>
+          <button type="submit" class="btn btn--primary" data-testid="register-submit" style="width:100%">Create account</button>
+          <div class="api-row"><code class="api">POST /api/v1/auth/register</code><code class="api">201 &rarr; step 2</code><code class="api">409 EMAIL_ALREADY_REGISTERED</code></div>
+        </form>
+      </div>
+
+      <div class="stack">
+        <div id="register-result" aria-live="polite" data-testid="register-live-region"></div>
+        <div class="card">
+          <h3>What we store, and what we don&rsquo;t</h3>
+          <table class="tbl" style="margin-top:var(--s-3)">
+            <caption class="sr-only">Registration request fields</caption>
+            <thead><tr><th scope="col">Field</th><th scope="col">Required</th><th scope="col">Used for</th></tr></thead>
+            <tbody>
+              <tr><td data-label="Field" class="mono">email</td><td data-label="Required">Yes</td><td data-label="Used for">Sign-in identifier, unique case-insensitively</td></tr>
+              <tr><td data-label="Field" class="mono">password</td><td data-label="Required">Yes</td><td data-label="Used for">Argon2id hash only &mdash; never echoed, never logged</td></tr>
+              <tr><td data-label="Field" class="mono">full_name</td><td data-label="Required">Yes</td><td data-label="Used for">Display and statements</td></tr>
+              <tr><td data-label="Field" class="mono">date_of_birth</td><td data-label="Required">Yes</td><td data-label="Used for">Profile record. <strong>No rule reads it.</strong></td></tr>
+              <tr><td data-label="Field" class="mono">phone</td><td data-label="Required">No</td><td data-label="Used for">SMS notification channel</td></tr>
+            </tbody>
+          </table>
+          <p class="small muted" style="margin-top:var(--s-3)"><code class="mono">role</code> is never accepted from the
+            client. Administrator accounts are seeded, never self-registered.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== KYC ============================== -->
+  <section role="tabpanel" id="panel-kyc" aria-labelledby="tab-kyc" tabindex="0" hidden>
+    <div class="grid g2" style="align-items:start">
+      <div class="card card--accent form-col">
+        <p class="step"><b>2</b> Verify your identity</p>
+        <h2 style="margin:var(--s-3) 0 var(--s-2)">Identity check</h2>
+        <p class="small muted">The verdict returns immediately. Your document number is redacted from every log line.</p>
+
+        <div class="switch" role="group" aria-label="Simulated response for the identity check" style="margin-top:var(--s-4)">
+          <button type="button" aria-pressed="true" data-sim="kyc" data-case="verified">200 VERIFIED</button>
+          <button type="button" aria-pressed="false" data-sim="kyc" data-case="rejected">200 REJECTED</button>
+          <button type="button" aria-pressed="false" data-sim="kyc" data-case="409">409 Already submitted</button>
+        </div>
+
+        <form id="kyc-form" data-testid="kyc-form" novalidate>
+          <div class="field">
+            <label for="kyc-email">Email address</label>
+            <input type="email" id="kyc-email" name="email" data-testid="kyc-email" value="amara.okonjo@example.invalid">
+          </div>
+          <div class="field">
+            <label for="kyc-document-type">Document type</label>
+            <select id="kyc-document-type" name="document_type" data-testid="kyc-document-type">
+              <option value="PASSPORT" selected>Passport</option>
+              <option value="NATIONAL_ID">National ID</option>
+              <option value="DRIVING_LICENCE">Driving licence</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="kyc-document-number">Document number</label>
+            <input type="text" id="kyc-document-number" name="document_number" data-testid="kyc-document-number"
+                   class="mono" value="P4471982" aria-describedby="kyc-document-number-hint">
+            <p class="hint" id="kyc-document-number-hint">Redacted from logs and never repeated back in an error message.</p>
+          </div>
+          <button type="submit" class="btn btn--primary" data-testid="kyc-submit" style="width:100%">Submit for verification</button>
+          <div class="api-row"><code class="api">POST /api/v1/auth/kyc</code><code class="api">200 VERIFIED | REJECTED</code><code class="api">409 KYC_ALREADY_SUBMITTED</code></div>
+        </form>
+      </div>
+
+      <div class="stack">
+        <div id="kyc-result" aria-live="polite" data-testid="kyc-live-region"></div>
+        <div class="card">
+          <h3>Deterministic by design</h3>
+          <p class="small muted">The stub verifier is deterministic, not random (A-02): a well-formed document number
+            verifies, and the reserved synthetic value <code class="mono">REJECT0000000</code> always rejects. A random
+            stub would make the failure path untestable.</p>
+          <p class="small muted" style="margin:0">A rejected check leaves the customer in
+            <span class="badge b-warn">PENDING_KYC</span> and offers no route to sign-in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================= LOGIN ============================= -->
+  <section role="tabpanel" id="panel-login" aria-labelledby="tab-login" tabindex="0" hidden>
+    <div class="grid g2" style="align-items:start">
+      <div class="card card--accent form-col">
+        <p class="step"><b>3</b> Sign in</p>
+        <h2 style="margin:var(--s-3) 0 var(--s-2)">Sign in</h2>
+        <p class="small muted">A 30-minute bearer token is issued and attached to every subsequent request.</p>
+
+        <div class="switch" role="group" aria-label="Simulated response for sign-in" style="margin-top:var(--s-4)">
+          <button type="button" aria-pressed="true" data-sim="login" data-case="200">200 Signed in</button>
+          <button type="button" aria-pressed="false" data-sim="login" data-case="403">403 PENDING_KYC</button>
+          <button type="button" aria-pressed="false" data-sim="login" data-case="401">401 Bad credentials</button>
+        </div>
+
+        <form id="login-form" data-testid="login-form" novalidate>
+          <div class="field">
+            <label for="login-email">Email address</label>
+            <input type="email" id="login-email" name="email" data-testid="login-email"
+                   autocomplete="email" value="amara.okonjo@example.invalid">
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" name="password" data-testid="login-password"
+                   autocomplete="current-password" value="correct-horse-battery">
+          </div>
+          <button type="submit" class="btn btn--primary" data-testid="login-submit" style="width:100%">Sign in</button>
+          <div class="api-row"><code class="api">POST /api/v1/auth/login</code><code class="api">401 UNAUTHORIZED</code><code class="api">403 PENDING_KYC</code></div>
+        </form>
+      </div>
+
+      <div class="stack">
+        <div id="login-result" aria-live="polite" data-testid="login-live-region"></div>
+        <div class="card rail">
+          <h3>403 is not 401</h3>
+          <p class="small muted">These two failures look similar to a customer and are entirely different to the
+            system, so they read differently on screen:</p>
+          <table class="tbl">
+            <caption class="sr-only">Sign-in failure distinctions</caption>
+            <thead><tr><th scope="col">HTTP</th><th scope="col">error.code</th><th scope="col">What the customer reads</th></tr></thead>
+            <tbody>
+              <tr><td data-label="HTTP" class="mono">401</td><td data-label="error.code"><span class="badge b-danger">UNAUTHORIZED</span></td>
+                  <td data-label="What the customer reads">&ldquo;Those sign-in details are not correct.&rdquo; &mdash; deliberately says nothing about whether the email exists.</td></tr>
+              <tr><td data-label="HTTP" class="mono">403</td><td data-label="error.code"><span class="badge b-warn">PENDING_KYC</span></td>
+                  <td data-label="What the customer reads">&ldquo;Your identity check has not completed yet.&rdquo; &mdash; the credentials were correct; the account is simply not active.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
-<footer data-testid="app-footer"><div class="spec"><strong>Mockup E6-S2</strong> &mdash; AC-01. The pending-KYC refusal is a distinct state from a credential failure, so the path is
-unambiguously testable. Date of birth is captured but gated on by nothing.</div>
-</footer></body></html>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; E6-S2 onboarding mockup &middot; synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Tokens from <a href="E6-S1.html">E6-S1</a>. Next: <a href="E6-S3.html">E6-S3 accounts</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  /* ---- tabs ---- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function select(tab) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    tab.focus();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(t); });
+    t.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      select(tabs[(i + d + tabs.length) % tabs.length]);
+    });
+  });
+
+  /* ---- simulated response selection ---- */
+  var sim = { register: '201', kyc: 'verified', login: '200' };
+  document.querySelectorAll('[data-sim]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var group = b.dataset.sim;
+      document.querySelectorAll('[data-sim="' + group + '"]').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      sim[group] = b.dataset.case;
+    });
+  });
+
+  function alertBox(kind, testid, title, body) {
+    var role = kind === 'a-danger' ? 'alert' : 'status';
+    return '<div class="alert ' + kind + '" role="' + role + '" data-testid="' + testid + '">' +
+           '<h3>' + title + '</h3><p>' + body + '</p></div>';
+  }
+
+  /* ---- register ---- */
+  var rEmail = document.getElementById('register-email');
+  var rErr = document.getElementById('register-email-err');
+  document.getElementById('register-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var out = document.getElementById('register-result');
+    if (sim.register === '409') {
+      rErr.classList.remove('hidden');
+      rEmail.setAttribute('aria-invalid', 'true');
+      rEmail.setAttribute('aria-describedby', 'register-email-hint register-email-err');
+      rEmail.focus();
+      out.innerHTML = alertBox('a-danger', 'register-error', 'Registration not completed',
+        'That email address is already registered. <span class="mono">error.code = EMAIL_ALREADY_REGISTERED</span> · HTTP 409. You stay on this step.');
+      return;
+    }
+    rErr.classList.add('hidden');
+    rEmail.removeAttribute('aria-invalid');
+    rEmail.setAttribute('aria-describedby', 'register-email-hint');
+    out.innerHTML = alertBox('a-ok', 'register-success', 'Account created',
+      'Customer <span class="mono">3f2a9c10…8a90</span> created with status <strong>PENDING_KYC</strong>. ' +
+      'Continue to the identity check.') +
+      '<p style="margin-top:var(--s-3)"><button type="button" class="btn btn--dark" data-goto="tab-kyc" data-testid="register-goto-kyc">Continue to identity check</button></p>';
+  });
+
+  /* ---- kyc ---- */
+  document.getElementById('kyc-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var out = document.getElementById('kyc-result');
+    if (sim.kyc === 'verified') {
+      out.innerHTML = alertBox('a-ok', 'kyc-result-verified', 'Identity verified',
+        '<span class="badge b-ok">KYC VERIFIED</span> · customer status is now <span class="badge b-ok">ACTIVE</span>. ' +
+        'Verified at <span class="ts">2026-08-19 09:04:40</span>.') +
+        '<p style="margin-top:var(--s-3)"><button type="button" class="btn btn--dark" data-goto="tab-login" data-testid="kyc-goto-login">Continue to sign in</button></p>';
+    } else if (sim.kyc === 'rejected') {
+      out.innerHTML = alertBox('a-danger', 'kyc-result-rejected', 'Identity check rejected',
+        '<span class="badge b-danger">KYC REJECTED</span> · customer status remains <span class="badge b-warn">PENDING_KYC</span>.<br>' +
+        '<strong>Reason recorded:</strong> <span data-testid="kyc-stub-reason">Reserved synthetic document number rejected by the verification stub.</span>') +
+        '<p class="small muted" style="margin-top:var(--s-3)">No route to sign-in is offered from a rejected check.</p>';
+    } else {
+      out.innerHTML = alertBox('a-warn', 'kyc-error-already-submitted', 'Already submitted',
+        'An identity check has already been recorded for this customer. ' +
+        '<span class="mono">error.code = KYC_ALREADY_SUBMITTED</span> · HTTP 409.');
+    }
+  });
+
+  /* ---- login ---- */
+  document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var out = document.getElementById('login-result');
+    if (sim.login === '200') {
+      out.innerHTML = alertBox('a-ok', 'login-success', 'Signed in',
+        'Bearer token stored, expires in 1800 seconds. Role <span class="mono">CUSTOMER</span>. Redirecting to your dashboard.') +
+        '<p style="margin-top:var(--s-3)"><a class="btn btn--dark" href="E6-S3.html" data-testid="login-goto-dashboard">Go to dashboard</a></p>';
+    } else if (sim.login === '403') {
+      out.innerHTML = alertBox('a-warn', 'login-error-pending-kyc', 'Identity check still pending',
+        'Your sign-in details were accepted, but your identity check has not completed, so your account is not yet ' +
+        'active. <span class="mono">error.code = PENDING_KYC</span> · HTTP <strong>403</strong>, not 401.') +
+        '<p style="margin-top:var(--s-3)"><button type="button" class="btn" data-goto="tab-kyc">Complete the identity check</button></p>';
+    } else {
+      out.innerHTML = alertBox('a-danger', 'login-error-invalid-credentials', 'Sign-in details not correct',
+        'Those sign-in details are not correct. Check the email address and password and try again. ' +
+        '<span class="mono">error.code = UNAUTHORIZED</span> · HTTP 401.');
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-goto]');
+    if (b) select(document.getElementById(b.dataset.goto));
+  });
+})();
+</script>
+</body>
+</html>

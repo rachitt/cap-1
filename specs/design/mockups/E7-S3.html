@@ -466,13 +466,13 @@ kbd{font-family:var(--f-money);font-size:var(--t-12);background:var(--ink-900);c
         <tbody>
           <tr><td data-label="Screen">E6-S4</td><td data-label="Region" class="mono">transfer-live-region</td>
             <td data-label="Politeness"><span class="badge b-ok">polite</span></td>
-            <td data-label="Announced text">&ldquo;Transfer completed. 250.00 rupees sent to account 100000000202. Your balance is now 115,221.11 rupees.&rdquo;</td></tr>
+            <td data-label="Announced text">&ldquo;Transfer completed. 250.00 rupees sent to account HZN0000000202. Your balance is now 115,221.11 rupees.&rdquo;</td></tr>
           <tr><td data-label="Screen">E6-S4</td><td data-label="Region" class="mono">transfer-error-insufficient-funds</td>
             <td data-label="Politeness"><span class="badge b-danger">assertive (role=alert)</span></td>
             <td data-label="Announced text">&ldquo;Transfer declined. Insufficient funds. No money left your account and your balance is unchanged.&rdquo;</td></tr>
           <tr><td data-label="Screen">E6-S3</td><td data-label="Region" class="mono">dashboard-live-region</td>
             <td data-label="Politeness"><span class="badge b-ok">polite</span></td>
-            <td data-label="Announced text">&ldquo;Savings account opened. Account number 100000000103, balance 0.00 rupees.&rdquo;</td></tr>
+            <td data-label="Announced text">&ldquo;Savings account opened. Account number HZN0000000103, balance 0.00 rupees.&rdquo;</td></tr>
           <tr><td data-label="Screen">E6-S3</td><td data-label="Region" class="mono">pagination-status</td>
             <td data-label="Politeness"><span class="badge b-ok">polite</span></td>
             <td data-label="Announced text">&ldquo;Showing 21&ndash;23 of 23 · page 2 of 2 · size 20&rdquo;</td></tr>
@@ -507,9 +507,9 @@ kbd{font-family:var(--f-money);font-size:var(--t-12);background:var(--ink-900);c
 
   /* ---------------- miniature dashboard rendered at three widths ---------------- */
   var ACCOUNTS = [
-    ['Everyday Savings', '100000000101', '115,471.11'],
-    ['Reserve Savings', '100000000102', '84,900.00'],
-    ['Travel Fund', '100000000103', '0.00']
+    ['Everyday Savings', 'HZN0000000101', '115,471.11'],
+    ['Reserve Savings', 'HZN0000000102', '84,900.00'],
+    ['Travel Fund', 'HZN0000000103', '0.00']
   ];
   function dashboard(cols) {
     return '<div class="mini">' +
@@ -534,7 +534,7 @@ kbd{font-family:var(--f-money);font-size:var(--t-12);background:var(--ink-900);c
   function auditTable() {
     return '<div class="mini"><div class="mini-bar">Horizon Admin</div>' +
       '<p class="mini-h">Audit ledger</p>' +
-      '<table class="mini-tbl"><thead><tr>' + COLS.map(function (c) { return '<th>' + c + '</th>'; }).join('') +
+      '<table class="mini-tbl"><thead><tr>' + COLS.map(function (c) { return '<th scope="col">' + c + '</th>'; }).join('') +
       '</tr></thead><tbody>' + AUDIT.map(function (r) {
         return '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>';

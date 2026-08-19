@@ -262,6 +262,13 @@ dialog::backdrop{background:rgba(11,21,36,.6)}
           </div>
         </div>
       </div>
+      <div class="api-row">
+        <code class="api">GET /api/v1/admin/loans?page=n&amp;size=20</code>
+        <code class="api">POST /api/v1/admin/loans/{loan_id}/review</code>
+        <code class="api">POST /api/v1/admin/loans/{loan_id}/approve</code>
+        <code class="api">POST /api/v1/admin/loans/{loan_id}/reject</code>
+        <code class="api">POST /api/v1/admin/loans/{loan_id}/disburse</code>
+      </div>
       <div id="queue-empty" class="hidden" style="margin-top:var(--s-4)">
         <div class="empty" data-testid="loan-queue-empty-state">
           <h3>Nothing in this status</h3>
@@ -463,7 +470,7 @@ dialog::backdrop{background:rgba(11,21,36,.6)}
           '<dt>Status</dt><dd><span class="badge ' + BADGE[l.status] + '">' + l.status + '</span></dd>' +
         '</dl>' +
         '<p class="small muted" style="margin-top:var(--s-4)">Declared income is shown because the applicant supplied it. ' +
-          'Nothing on this screen scores, ranks or pre-assesses the application &mdash; the decision is yours and your ' +
+          'Nothing on this screen scores or ranks the application &mdash; the decision is yours and your ' +
           'reason is recorded with it.</p>' +
         '<h3 style="margin-top:var(--s-5);font-size:var(--t-18)">History</h3>' +
         '<ol class="stack" style="list-style:none;padding:0;margin:var(--s-3) 0 0">' + l.timeline.map(function (t) {
