@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E7-S1 Administrator Loan Review Queue</title>
+<!--
+  E7-S1 — AC-08. Administrator loan queue: filter, review, approve, reject, disburse.
+  Contract source: api-contracts.md §7.
+  Legal transitions only: APPLIED→UNDER_REVIEW, UNDER_REVIEW→APPROVED|REJECTED, APPROVED→DISBURSED.
+  REJECTED and DISBURSED are terminal. Every other pair is 409 ILLEGAL_LOAN_TRANSITION (E-11, E-12).
+  Approve and reject require a NON-EMPTY reason after trimming; an empty one is blocked client-side and
+  is 422 VALIDATION_ERROR server-side (E-13).
+
+  DD-14 #4 — the reviewer sees the application and decides. There is no eligibility score, risk band,
+  affordability ratio, recommendation or "meets criteria" indicator anywhere on this screen.
+  `declared_monthly_income` is displayed as supplied information only.
+  Desktop-first surface; reflows to stacked cards below 768px. Synthetic data only.
+-->
+<style>
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
+:root{
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
+
+/* page-specific: admin queue */
+.filters{display:flex;flex-wrap:wrap;gap:var(--s-4);align-items:flex-end;padding:var(--s-4) var(--s-5);
+ background:var(--surface);border:1px solid var(--ink-200);border-left:4px solid var(--ink-900);border-radius:var(--r-2)}
+.filters .field{margin:0;min-width:13rem;flex:1}
+.actions{display:flex;flex-wrap:wrap;gap:var(--s-2)}
+.terminal{font:700 var(--t-12)/1.6 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-500)}
+dialog{border:2px solid var(--ink-900);border-radius:var(--r-2);padding:0;max-width:34rem;width:calc(100% - 2rem);
+ box-shadow:var(--e-2);background:var(--surface);color:var(--ink-900)}
+dialog::backdrop{background:rgba(11,21,36,.6)}
+.dlg-head{padding:var(--s-4) var(--s-5);border-bottom:1px solid var(--ink-200);background:var(--panel)}
+.dlg-body{padding:var(--s-5)}
+.dlg-foot{display:flex;flex-wrap:wrap;gap:var(--s-3);padding:var(--s-4) var(--s-5);border-top:1px solid var(--ink-200);
+ background:var(--panel);justify-content:flex-end}
+.split{display:grid;gap:var(--s-4);grid-template-columns:1fr}
+@media(min-width:1100px){.split{grid-template-columns:minmax(0,2fr) minmax(0,1fr);align-items:start}}
+.kv{display:grid;grid-template-columns:minmax(8rem,42%) 1fr;gap:var(--s-2) var(--s-3);margin:0}
+.kv dt{font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600)}
+.kv dd{margin:0}
+</style>
+</head>
+<body>
+
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Admin</em></a>
+    <p class="who" style="margin:0">Ravi Deshmukh <span class="badge b-accent">ADMIN</span></p>
+  </div>
+</header>
+
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html" aria-current="page">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html">E9-S1 Verification map</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap" id="main" data-testid="app-main">
+  <p class="eyebrow">E7-S1 &middot; AC-08 &middot; administrator</p>
+  <h1>Loan review queue</h1>
+  <p class="lede">Read the application, decide, and record why. Approving and rejecting both require a written reason
+    &mdash; the reason is the audit trail. Only transitions that are legal from a loan&rsquo;s current state are offered.</p>
+
+  <div id="queue-live" role="status" aria-live="polite" aria-atomic="true" data-testid="loan-queue-live-region"
+       style="margin-top:var(--s-5)"></div>
+
+  <form class="filters" id="queue-filters" style="margin-top:var(--s-4)">
+    <div class="field">
+      <label for="loan-queue-filter-status">Status</label>
+      <select id="loan-queue-filter-status" name="status" data-testid="loan-queue-filter-status">
+        <option value="APPLIED" selected>APPLIED (default)</option>
+        <option value="UNDER_REVIEW">UNDER_REVIEW</option>
+        <option value="APPROVED">APPROVED</option>
+        <option value="REJECTED">REJECTED</option>
+        <option value="DISBURSED">DISBURSED</option>
+        <option value="ALL">All statuses</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="queue-sim">Simulated server response</label>
+      <select id="queue-sim" data-testid="queue-sim">
+        <option value="200" selected>200 — decision accepted</option>
+        <option value="409">409 — ILLEGAL_LOAN_TRANSITION</option>
+      </select>
+    </div>
+    <p class="small muted" style="margin:0;flex-basis:100%">
+      <code class="api">GET /api/v1/admin/loans?status=APPLIED&amp;page=1&amp;size=20</code>
+      &mdash; changing the status re-queries the endpoint.</p>
+  </form>
+
+  <div class="split" style="margin-top:var(--s-4)">
+    <section aria-labelledby="h-queue">
+      <h2 id="h-queue" class="sr-only">Queue</h2>
+      <div class="tbl-wrap">
+        <table class="tbl" data-testid="loan-queue-table">
+          <caption id="queue-caption">Loan applications</caption>
+          <thead>
+            <tr>
+              <th scope="col">Applicant</th>
+              <th scope="col" class="num">Principal</th>
+              <th scope="col" class="num">Tenure</th>
+              <th scope="col">Purpose</th>
+              <th scope="col">Applied</th>
+              <th scope="col">Status</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="queue-body"></tbody>
+        </table>
+        <div class="pager">
+          <p id="queue-count"></p>
+          <div class="row">
+            <button type="button" class="btn btn--sm" disabled data-testid="loan-queue-prev">Previous</button>
+            <button type="button" class="btn btn--sm" disabled data-testid="loan-queue-next">Next</button>
+          </div>
+        </div>
+      </div>
+      <div id="queue-empty" class="hidden" style="margin-top:var(--s-4)">
+        <div class="empty" data-testid="loan-queue-empty-state">
+          <h3>Nothing in this status</h3>
+          <p>No loan application currently sits in the selected status. Change the filter to see the rest of the queue.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside id="loan-detail-panel" data-testid="loan-detail-panel" aria-label="Application detail"></aside>
+  </div>
+
+  <section aria-labelledby="h-matrix" style="margin-top:var(--s-8)">
+    <p class="eyebrow">Guard rails</p>
+    <h2 id="h-matrix">What each state allows</h2>
+    <div class="tbl-wrap" style="margin-top:var(--s-4)">
+      <table class="tbl">
+        <caption>Legal state transitions &mdash; everything else is 409 ILLEGAL_LOAN_TRANSITION</caption>
+        <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Endpoint</th><th scope="col">Reason</th></tr></thead>
+        <tbody>
+          <tr><td data-label="From"><span class="badge b-info">APPLIED</span></td><td data-label="To"><span class="badge b-warn">UNDER_REVIEW</span></td>
+              <td data-label="Endpoint" class="mono">POST …/{id}/review</td><td data-label="Reason">Optional</td></tr>
+          <tr><td data-label="From"><span class="badge b-warn">UNDER_REVIEW</span></td><td data-label="To"><span class="badge b-ok">APPROVED</span></td>
+              <td data-label="Endpoint" class="mono">POST …/{id}/approve</td><td data-label="Reason"><strong>Mandatory, non-empty</strong></td></tr>
+          <tr><td data-label="From"><span class="badge b-warn">UNDER_REVIEW</span></td><td data-label="To"><span class="badge b-danger">REJECTED</span></td>
+              <td data-label="Endpoint" class="mono">POST …/{id}/reject</td><td data-label="Reason"><strong>Mandatory, non-empty</strong></td></tr>
+          <tr><td data-label="From"><span class="badge b-ok">APPROVED</span></td><td data-label="To"><span class="badge b-info">DISBURSED</span></td>
+              <td data-label="Endpoint" class="mono">POST …/{id}/disburse</td><td data-label="Reason">Not applicable</td></tr>
+          <tr><td data-label="From"><span class="badge b-danger">REJECTED</span></td><td data-label="To"><span class="terminal">Terminal</span></td>
+              <td data-label="Endpoint" class="mono">&mdash;</td><td data-label="Reason">Approving a rejected loan returns 409 (E-12)</td></tr>
+          <tr><td data-label="From"><span class="badge b-info">DISBURSED</span></td><td data-label="To"><span class="terminal">Terminal</span></td>
+              <td data-label="Endpoint" class="mono">&mdash;</td><td data-label="Reason">No repayment schedule is created</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- ============================ decision dialog ============================ -->
+<dialog id="decision-dialog" data-testid="decision-dialog" aria-labelledby="decision-title">
+  <form method="dialog" id="decision-form">
+    <div class="dlg-head">
+      <h2 id="decision-title" style="font-size:var(--t-22)">Approve application</h2>
+      <p class="small muted" id="decision-subject" style="margin:var(--s-2) 0 0"></p>
+    </div>
+    <div class="dlg-body">
+      <div class="field" style="margin:0">
+        <label for="decision-reason">Reason for this decision</label>
+        <textarea id="decision-reason" name="reason" data-testid="decision-reason"
+                  aria-describedby="decision-reason-hint"></textarea>
+        <p class="hint" id="decision-reason-hint">Required. This text is written to the loan&rsquo;s state history and to
+          the audit ledger, and the customer can read it.</p>
+        <p class="err hidden" id="decision-reason-err" data-testid="decision-error-reason-required"></p>
+      </div>
+      <div id="decision-dialog-error" style="margin-top:var(--s-4)"></div>
+      <div class="api-row"><code class="api" id="decision-endpoint">POST /api/v1/admin/loans/{loan_id}/approve</code>
+        <code class="api">422 VALIDATION_ERROR</code><code class="api">409 ILLEGAL_LOAN_TRANSITION</code></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn" data-testid="decision-cancel" id="decision-cancel">Cancel</button>
+      <button type="button" class="btn btn--primary" data-testid="decision-submit" id="decision-submit">Record decision</button>
+    </div>
+  </form>
+</dialog>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; E7-S1 administrator queue mockup &middot; synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Tokens from <a href="E6-S1.html">E6-S1</a>. Next: <a href="E7-S2.html">E7-S2 audit ledger</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  function formatMoney(value) {
+    var s = String(value), parts = s.split('.'), whole = parts[0] || '0';
+    var frac = ((parts[1] || '') + '00').slice(0, 2), out = '', c = 0;
+    for (var k = whole.length - 1; k >= 0; k--) {
+      out = whole.charAt(k) + out; c++;
+      if (c % 3 === 0 && k > 0) { out = ',' + out; }
+    }
+    return out + '.' + frac;
+  }
+  function moneyHTML(v, cls) {
+    return '<span class="money ' + (cls || 'money--sm') + '"><span class="cur" aria-hidden="true">&#8377;</span>' +
+           '<span class="sr-only">Indian rupees </span>' + formatMoney(v) + '</span>';
+  }
+  function stamp(iso) { return iso.replace('T', ' ').replace('Z', ''); }
+  var $ = function (id) { return document.getElementById(id); };
+
+  var BADGE = { APPLIED: 'b-info', UNDER_REVIEW: 'b-warn', APPROVED: 'b-ok', REJECTED: 'b-danger', DISBURSED: 'b-info' };
+  var ADMIN = '0a0a0a0a-1b1b-4c4c-8d8d-9e9e9e9e9e9e';
+
+  var LOANS = [
+    { id: 'a7b8c9d0', customer_name: 'Amara Okonjo', principal: '18500.50', tenure_months: 6,
+      declared_monthly_income: '85000.00', purpose: 'Dental treatment not covered by insurance',
+      status: 'APPLIED', created_at: '2026-08-19T07:30:00Z',
+      timeline: [{ to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-19T07:30:00Z' }] },
+    { id: 'b1c2d3e4', customer_name: 'Kofi Mensah', principal: '75000.00', tenure_months: 18,
+      declared_monthly_income: null, purpose: 'Vocational course fees for a plumbing certification',
+      status: 'APPLIED', created_at: '2026-08-18T15:12:44Z',
+      timeline: [{ to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-18T15:12:44Z' }] },
+    { id: 'c2d3e4f5', customer_name: 'Priya Balakrishnan', principal: '95000.00', tenure_months: 30,
+      declared_monthly_income: '62000.00', purpose: 'Replace a delivery scooter used for the family business',
+      status: 'APPLIED', created_at: '2026-08-17T11:05:19Z',
+      timeline: [{ to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-17T11:05:19Z' }] },
+    { id: 'f6a7b8c9', customer_name: 'Amara Okonjo', principal: '120000.00', tenure_months: 24,
+      declared_monthly_income: '85000.00', purpose: 'Consolidate two outstanding store credit balances',
+      status: 'UNDER_REVIEW', created_at: '2026-08-15T08:45:00Z',
+      timeline: [
+        { to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-15T08:45:00Z' },
+        { to_status: 'UNDER_REVIEW', from_status: 'APPLIED', actor_role: 'ADMIN', reason: null, created_at: '2026-08-18T09:12:30Z' }] },
+    { id: 'd0e1f2a3', customer_name: 'Neelam Raghavan', principal: '500000.00', tenure_months: 60,
+      declared_monthly_income: '210000.00', purpose: 'Extension to a rented commercial kitchen',
+      status: 'APPROVED', created_at: '2026-08-04T13:20:00Z',
+      timeline: [
+        { to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-04T13:20:00Z' },
+        { to_status: 'UNDER_REVIEW', from_status: 'APPLIED', actor_role: 'ADMIN', reason: null, created_at: '2026-08-10T10:00:00Z' },
+        { to_status: 'APPROVED', from_status: 'UNDER_REVIEW', actor_role: 'ADMIN', reason: 'Lease agreement and supplier quotations verified against the stated purpose.', created_at: '2026-08-12T16:44:07Z' }] },
+    { id: 'e5f6a7b8', customer_name: 'Tobias Lindqvist', principal: '40000.00', tenure_months: 12,
+      declared_monthly_income: null, purpose: 'Replace a failed laptop used for freelance work',
+      status: 'REJECTED', created_at: '2026-08-02T09:15:00Z',
+      timeline: [
+        { to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-02T09:15:00Z' },
+        { to_status: 'UNDER_REVIEW', from_status: 'APPLIED', actor_role: 'ADMIN', reason: 'Opening review.', created_at: '2026-08-06T10:22:04Z' },
+        { to_status: 'REJECTED', from_status: 'UNDER_REVIEW', actor_role: 'ADMIN', reason: 'Insufficient documentation — the supporting invoice was not attached to the application.', created_at: '2026-08-09T11:40:52Z' }] },
+    { id: 'aa11bb22', customer_name: 'Amara Okonjo', principal: '250000.00', tenure_months: 36,
+      declared_monthly_income: '85000.00', purpose: 'Home renovation — kitchen and roof repair',
+      status: 'DISBURSED', created_at: '2026-07-28T12:00:00Z',
+      timeline: [
+        { to_status: 'APPLIED', from_status: null, actor_role: 'CUSTOMER', reason: null, created_at: '2026-07-28T12:00:00Z' },
+        { to_status: 'UNDER_REVIEW', from_status: 'APPLIED', actor_role: 'ADMIN', reason: null, created_at: '2026-08-14T14:02:18Z' },
+        { to_status: 'APPROVED', from_status: 'UNDER_REVIEW', actor_role: 'ADMIN', reason: 'Documentation complete and consistent with the stated purpose.', created_at: '2026-08-16T14:31:09Z' },
+        { to_status: 'DISBURSED', from_status: 'APPROVED', actor_role: 'ADMIN', reason: null, created_at: '2026-08-18T16:20:10Z' }] }
+  ];
+
+  var filter = 'APPLIED', selected = LOANS[0].id, pending = null;
+
+  function allowed(status) {
+    if (status === 'APPLIED') { return [['review', 'Open review', 'btn']]; }
+    if (status === 'UNDER_REVIEW') { return [['approve', 'Approve', 'btn btn--primary'], ['reject', 'Reject', 'btn btn--danger']]; }
+    if (status === 'APPROVED') { return [['disburse', 'Disburse', 'btn btn--primary']]; }
+    return [];
+  }
+
+  function visible() {
+    return filter === 'ALL' ? LOANS : LOANS.filter(function (l) { return l.status === filter; });
+  }
+
+  function renderQueue() {
+    var rows = visible();
+    $('queue-caption').textContent = 'Loan applications — status ' + filter;
+    $('queue-count').textContent = 'Showing ' + rows.length + ' of ' + LOANS.length +
+      ' applications · page 1 of 1 · size 20';
+    $('queue-empty').classList.toggle('hidden', rows.length > 0);
+    $('queue-wrap').classList.toggle('hidden', rows.length === 0);
+
+    $('queue-body').innerHTML = rows.map(function (l) {
+      var acts = allowed(l.status);
+      var actHTML = acts.length
+        ? acts.map(function (a) {
+            return '<button type="button" class="' + a[2] + ' btn--sm" data-testid="loan-action-' + a[0] + '" ' +
+              'data-action="' + a[0] + '" data-loan="' + l.id + '">' + a[1] + '</button>';
+          }).join('')
+        : '<span class="terminal">Terminal — no action</span>' +
+          (l.status === 'REJECTED'
+            ? '<button type="button" class="btn btn--sm" data-testid="loan-action-illegal" data-action="illegal" ' +
+              'data-loan="' + l.id + '">Attempt approve (illegal)</button>'
+            : '');
+      return '<tr data-testid="loan-queue-row" data-loan-row="' + l.id + '">' +
+        '<td data-label="Applicant"><button type="button" class="btn btn--ghost btn--sm" style="padding:0;min-height:0" ' +
+          'data-select="' + l.id + '">' + l.customer_name + '</button><br>' +
+          '<span class="mono small muted">' + l.id + '</span></td>' +
+        '<td data-label="Principal" class="num" data-testid="loan-queue-principal">' + moneyHTML(l.principal) + '</td>' +
+        '<td data-label="Tenure" class="num mono">' + l.tenure_months + ' mo</td>' +
+        '<td data-label="Purpose">' + l.purpose + '</td>' +
+        '<td data-label="Applied" class="ts">' + l.created_at.slice(0, 10) + '</td>' +
+        '<td data-label="Status"><span class="badge ' + BADGE[l.status] + '" data-testid="loan-queue-status">' + l.status + '</span></td>' +
+        '<td data-label="Actions"><span class="actions">' + actHTML + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function renderDetail() {
+    var l = LOANS.filter(function (x) { return x.id === selected; })[0];
+    if (!l) { $('loan-detail-panel').innerHTML = ''; return; }
+    $('loan-detail-panel').innerHTML =
+      '<div class="card card--accent">' +
+        '<p class="eyebrow">Application detail</p>' +
+        '<h2 style="font-size:var(--t-22)">' + l.customer_name + '</h2>' +
+        '<p class="mono small muted" style="margin:4px 0 var(--s-4)">' + l.id + '</p>' +
+        '<dl class="kv">' +
+          '<dt>Principal</dt><dd>' + moneyHTML(l.principal, 'money--md') + '</dd>' +
+          '<dt>Tenure</dt><dd class="mono">' + l.tenure_months + ' months</dd>' +
+          '<dt>Purpose</dt><dd>' + l.purpose + '</dd>' +
+          '<dt>Monthly income</dt><dd>' + (l.declared_monthly_income
+            ? moneyHTML(l.declared_monthly_income) + ' <span class="small muted">as declared by the applicant</span>'
+            : '<span class="small muted">Not supplied — optional field</span>') + '</dd>' +
+          '<dt>Applied</dt><dd class="ts">' + stamp(l.created_at) + '</dd>' +
+          '<dt>Status</dt><dd><span class="badge ' + BADGE[l.status] + '">' + l.status + '</span></dd>' +
+        '</dl>' +
+        '<p class="small muted" style="margin-top:var(--s-4)">Declared income is shown because the applicant supplied it. ' +
+          'Nothing on this screen scores, ranks or pre-assesses the application &mdash; the decision is yours and your ' +
+          'reason is recorded with it.</p>' +
+        '<h3 style="margin-top:var(--s-5);font-size:var(--t-18)">History</h3>' +
+        '<ol class="stack" style="list-style:none;padding:0;margin:var(--s-3) 0 0">' + l.timeline.map(function (t) {
+          return '<li style="border-left:3px solid var(--ink-200);padding-left:var(--s-3)">' +
+            '<span class="badge ' + BADGE[t.to_status] + '">' + t.to_status + '</span>' +
+            '<p class="ts" style="margin:6px 0 0">' + stamp(t.created_at) + ' · ' + t.actor_role + '</p>' +
+            (t.reason ? '<p class="small" style="margin:4px 0 0">' + t.reason + '</p>' : '') +
+          '</li>';
+        }).join('') + '</ol>' +
+      '</div>';
+  }
+
+  renderQueue(); renderDetail();
+
+  $('loan-queue-filter-status').addEventListener('change', function (e) {
+    filter = e.target.value;
+    renderQueue();
+    $('queue-live').innerHTML = '<div class="alert a-info" role="status"><h3>Queue re-queried</h3>' +
+      '<p><span class="mono">GET /api/v1/admin/loans?status=' + filter + '</span> — ' +
+      visible().length + ' application(s) returned.</p></div>';
+  });
+
+  /* ------------------------------- row actions ------------------------------- */
+  var dlg = $('decision-dialog');
+  function openDialog(action, loan) {
+    pending = { action: action, loan: loan };
+    var isReject = action === 'reject';
+    var isIllegal = action === 'illegal';
+    $('decision-title').textContent = isIllegal ? 'Approve application (illegal from REJECTED)'
+      : isReject ? 'Reject application' : 'Approve application';
+    $('decision-subject').innerHTML = loan.customer_name + ' · ' + formatMoney(loan.principal) +
+      ' over ' + loan.tenure_months + ' months · currently <span class="badge ' + BADGE[loan.status] + '">' +
+      loan.status + '</span>';
+    $('decision-endpoint').textContent = 'POST /api/v1/admin/loans/' + loan.id + '/' + (isReject ? 'reject' : 'approve');
+    $('decision-submit').className = isReject ? 'btn btn--danger' : 'btn btn--primary';
+    $('decision-submit').textContent = isReject ? 'Reject with this reason' : 'Approve with this reason';
+    $('decision-reason').value = '';
+    $('decision-reason').removeAttribute('aria-invalid');
+    $('decision-reason').setAttribute('aria-describedby', 'decision-reason-hint');
+    $('decision-reason-err').classList.add('hidden');
+    $('decision-dialog-error').innerHTML = '';
+    if (dlg.showModal) { dlg.showModal(); } else { dlg.setAttribute('open', ''); }
+    $('decision-reason').focus();
+  }
+
+  document.addEventListener('click', function (e) {
+    var sel = e.target.closest('[data-select]');
+    if (sel) { selected = sel.dataset.select; renderDetail(); return; }
+
+    var act = e.target.closest('[data-action]');
+    if (!act) return;
+    var loan = LOANS.filter(function (l) { return l.id === act.dataset.loan; })[0];
+    selected = loan.id; renderDetail();
+
+    if (act.dataset.action === 'review') {
+      loan.status = 'UNDER_REVIEW';
+      loan.timeline.push({ to_status: 'UNDER_REVIEW', from_status: 'APPLIED', actor_role: 'ADMIN', reason: null, created_at: '2026-08-19T10:40:00Z' });
+      renderQueue(); renderDetail();
+      $('queue-live').innerHTML = '<div class="alert a-ok" role="status"><h3>Opened for review</h3>' +
+        '<p>' + loan.customer_name + '’s application moved APPLIED → UNDER_REVIEW. ' +
+        '<span class="mono">POST /api/v1/admin/loans/' + loan.id + '/review</span> · HTTP 200. A reason is optional on this step.</p></div>';
+      return;
+    }
+    if (act.dataset.action === 'disburse') {
+      if ($('queue-sim').value === '409') {
+        $('queue-live').innerHTML = '<div class="alert a-danger" role="alert" data-testid="decision-error-illegal-transition">' +
+          '<h3>Disbursement refused — invalid state transition</h3>' +
+          '<p>This loan is not in a state from which it can be disbursed, so nothing changed. ' +
+          '<span class="mono">error.code = ILLEGAL_LOAN_TRANSITION</span> · HTTP 409. The row status is unchanged.</p></div>';
+        return;
+      }
+      loan.status = 'DISBURSED';
+      loan.timeline.push({ to_status: 'DISBURSED', from_status: 'APPROVED', actor_role: 'ADMIN', reason: null, created_at: '2026-08-19T10:41:00Z' });
+      renderQueue(); renderDetail();
+      $('queue-live').innerHTML = '<div class="alert a-ok" role="status"><h3>Funds released</h3>' +
+        '<p>' + formatMoney(loan.principal) + ' credited to the applicant’s savings account. ' +
+        '<span class="mono">POST /api/v1/admin/loans/' + loan.id + '/disburse</span> · HTTP 200. DISBURSED is terminal.</p></div>';
+      return;
+    }
+    openDialog(act.dataset.action, loan);
+  });
+
+  /* ---------------------------- decision submission ---------------------------- */
+  $('decision-cancel').addEventListener('click', function () { dlg.close ? dlg.close() : dlg.removeAttribute('open'); });
+
+  $('decision-submit').addEventListener('click', function () {
+    var reason = $('decision-reason').value;
+    var trimmed = reason.replace(/^\s+|\s+$/g, '');
+    if (!trimmed) {
+      $('decision-reason-err').textContent = reason.length
+        ? 'A reason of only spaces is not a reason. Write why you are recording this decision.'
+        : 'A reason is required before this decision can be recorded.';
+      $('decision-reason-err').classList.remove('hidden');
+      $('decision-reason').setAttribute('aria-invalid', 'true');
+      $('decision-reason').setAttribute('aria-describedby', 'decision-reason-hint decision-reason-err');
+      $('decision-dialog-error').innerHTML = '<div class="alert a-danger" role="alert" style="margin:0">' +
+        '<h3>Nothing was sent</h3><p>The request was stopped here, before any call to the API. The server would ' +
+        'reject it too: <span class="mono">422 VALIDATION_ERROR</span> with ' +
+        '<span class="mono">field_errors: [{ field: "reason", message: "must not be empty" }]</span>.</p></div>';
+      $('decision-reason').focus();
+      return;
+    }
+
+    var illegal = pending.action === 'illegal' || $('queue-sim').value === '409';
+    if (illegal) {
+      $('decision-dialog-error').innerHTML = '<div class="alert a-danger" role="alert" ' +
+        'data-testid="decision-error-illegal-transition" style="margin:0"><h3>Invalid state transition</h3>' +
+        '<p>A loan in status <strong>' + pending.loan.status + '</strong> cannot be ' +
+        (pending.action === 'reject' ? 'rejected' : 'approved') + '. Nothing changed and the row status was not ' +
+        'optimistically updated. <span class="mono">error.code = ILLEGAL_LOAN_TRANSITION</span> · HTTP 409.</p></div>';
+      return;
+    }
+
+    var loan = pending.loan;
+    var to = pending.action === 'reject' ? 'REJECTED' : 'APPROVED';
+    loan.timeline.push({ to_status: to, from_status: loan.status, actor_role: 'ADMIN', reason: trimmed, created_at: '2026-08-19T10:42:00Z' });
+    loan.status = to;
+    dlg.close ? dlg.close() : dlg.removeAttribute('open');
+    renderQueue(); renderDetail();
+    $('queue-live').innerHTML = '<div class="alert ' + (to === 'APPROVED' ? 'a-ok' : 'a-danger') + '" role="status">' +
+      '<h3>Decision recorded — ' + to + '</h3><p>' + loan.customer_name + '’s application is now ' +
+      '<span class="badge ' + BADGE[to] + '">' + to + '</span>. Reason recorded: “' + trimmed + '”. ' +
+      '<span class="mono">POST /api/v1/admin/loans/' + loan.id + '/' + pending.action + '</span> · HTTP 200.</p></div>';
+    $('queue-live').querySelector('.alert').setAttribute('tabindex', '-1');
+    $('queue-live').querySelector('.alert').focus();
+  });
+
+  $('queue-filters').addEventListener('submit', function (e) { e.preventDefault(); });
+})();
+</script>
+</body>
+</html>

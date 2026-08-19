@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E6-S3 Dashboard &amp; Account Detail</title>
+<!--
+  E6-S3 — AC-02 (open account, balance initialises to "0.00") and AC-03 (paginated statement).
+  Contract source: api-contracts.md §3. Fields: id, account_number, type, balance, currency, status, opened_at;
+  statement items: id, account_id, counterparty_account_number, direction, amount, balance_after, transfer_id,
+  description, created_at; page envelope: items, page, size, total, total_pages.
+  Page size 20, most-recent-first (A-06 / DD-11). Empty statement is 200 with an empty page, never 404 (E-20).
+  formatMoney() below operates on decimal STRINGS only — no parseFloat, no Number(), no arithmetic (NFR-01).
+  Synthetic data only.
+-->
+<style>
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
+:root{
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
+
+/* page-specific: accounts */
+.acct{display:block;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--ink-200);
+ border-top:3px solid var(--ink-900);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1);
+ transition:border-color var(--m-fast) var(--m-ease),box-shadow var(--m-fast) var(--m-ease)}
+.acct:hover{border-top-color:var(--accent-600);box-shadow:var(--e-2)}
+.acct[data-new="true"]{border-top-color:var(--accent-600);background:var(--accent-050)}
+.acct-num{font-family:var(--f-money);font-size:var(--t-14);letter-spacing:.08em;color:var(--ink-600)}
+.hero{background:var(--ink-900);color:var(--paper);border-radius:var(--r-2);padding:var(--s-5);border-left:5px solid var(--accent-600)}
+.hero .money{color:var(--paper)}
+.hero .money .cur{color:var(--accent-200)}
+.hero .eyebrow{color:var(--accent-200)}
+.hero .eyebrow::after{background:var(--ink-700)}
+.summary{display:grid;gap:var(--s-4);grid-template-columns:1fr}
+@media(min-width:900px){.summary{grid-template-columns:minmax(0,1.1fr) minmax(0,2fr)}}
+</style>
+</head>
+<body>
+
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Bank</em></a>
+    <p class="who" style="margin:0">Amara Okonjo <span class="badge b-ok">ACTIVE</span></p>
+  </div>
+</header>
+
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html" aria-current="page">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html">E9-S1 Verification map</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap" id="main" data-testid="app-main">
+  <p class="eyebrow">E6-S3 &middot; AC-02 &amp; AC-03</p>
+  <h1>Accounts</h1>
+  <p class="lede">Two screens: the dashboard, where every owned account shows its balance at a glance, and the account
+    detail, where the balance sits above a paginated statement ordered most recent first.</p>
+
+  <div class="switch" role="group" aria-label="Screen" data-testid="screen-switcher" style="margin-top:var(--s-5)">
+    <button type="button" aria-pressed="true" data-screen="dash">Dashboard</button>
+    <button type="button" aria-pressed="false" data-screen="detail">Account detail</button>
+  </div>
+
+  <!-- ============================ DASHBOARD ============================ -->
+  <section id="screen-dash" aria-labelledby="h-dash">
+    <div class="row between" style="margin-bottom:var(--s-4)">
+      <h2 id="h-dash">Your savings accounts</h2>
+      <button type="button" class="btn btn--primary" id="open-account-button" data-testid="open-account-button">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="square"/></svg>
+        Open a savings account
+      </button>
+    </div>
+    <div class="api-row" style="margin-bottom:var(--s-4)">
+      <code class="api">GET /api/v1/accounts</code><code class="api">POST /api/v1/accounts &rarr; 201, balance "0.00"</code>
+    </div>
+
+    <div class="switch" role="group" aria-label="Dashboard state" data-testid="dash-state-switcher">
+      <button type="button" aria-pressed="true" data-dash="populated">Accounts held</button>
+      <button type="button" aria-pressed="false" data-dash="empty">No accounts yet</button>
+    </div>
+
+    <p aria-live="polite" data-testid="dashboard-live-region" id="dash-live" class="sr-only"></p>
+
+    <div id="dash-populated">
+      <div class="grid g3" id="dashboard-accounts" data-testid="dashboard-accounts"></div>
+      <p class="small muted" style="margin-top:var(--s-4)">A newly opened account always displays
+        <span class="money money--sm">0.00</span> &mdash; never blank, never a dash. There is no opening-deposit
+        field and no minimum-balance rule.</p>
+    </div>
+
+    <div id="dash-empty" class="hidden">
+      <div class="empty" data-testid="accounts-empty-state">
+        <h3>You do not hold an account yet</h3>
+        <p>Open a savings account to start receiving and sending money. It opens with a balance of 0.00 and is ready
+          to use immediately.</p>
+        <button type="button" class="btn btn--primary" data-testid="open-account-button-empty">Open a savings account</button>
+        <div class="api-row" style="justify-content:center"><code class="api">POST /api/v1/accounts</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= ACCOUNT DETAIL ========================= -->
+  <section id="screen-detail" class="hidden" aria-labelledby="h-detail" data-testid="account-detail">
+    <p><button type="button" class="btn btn--ghost" data-screen-link="dash">&larr; Back to accounts</button></p>
+
+    <div class="summary">
+      <div class="hero on-dark">
+        <p class="eyebrow">Available balance</p>
+        <p class="money money--xl" data-testid="account-detail-balance">
+          <span class="cur" aria-hidden="true">&#8377;</span><span class="sr-only">Indian rupees </span>115,471.11</p>
+        <p class="acct-num" style="color:var(--ink-200);margin:var(--s-3) 0 0">
+          Everyday Savings &middot; <span data-testid="account-detail-number">HZN0000000101</span></p>
+        <p class="small" style="color:var(--ink-200);margin:var(--s-2) 0 0">
+          <span class="badge b-ok">ACTIVE</span> &middot; SAVINGS &middot; INR &middot; opened <span class="ts" style="color:var(--ink-200)">2026-07-05</span></p>
+      </div>
+      <div class="card">
+        <h2 id="h-detail">Statement</h2>
+        <p class="small muted">Ordered most recent first, twenty entries to a page. Every amount is rendered from the
+          decimal string returned by the API; the browser never adds, subtracts or rounds a money value.</p>
+        <div class="switch" role="group" aria-label="Statement state" data-testid="statement-state-switcher">
+          <button type="button" aria-pressed="true" data-stmt="populated">23 transactions</button>
+          <button type="button" aria-pressed="false" data-stmt="empty">No transactions</button>
+          <button type="button" aria-pressed="false" data-stmt="loading">Loading</button>
+        </div>
+        <div class="api-row"><code class="api">GET /api/v1/accounts/{account_id}/statements?page=1&amp;size=20</code></div>
+      </div>
+    </div>
+
+    <div id="stmt-populated" style="margin-top:var(--s-4)">
+      <div class="tbl-wrap">
+        <table class="tbl" data-testid="statement-table">
+          <caption>Statement &mdash; Everyday Savings HZN0000000101</caption>
+          <thead>
+            <tr>
+              <th scope="col">Posted</th>
+              <th scope="col">Description</th>
+              <th scope="col">Counterparty</th>
+              <th scope="col">Direction</th>
+              <th scope="col" class="num">Amount</th>
+              <th scope="col" class="num">Balance after</th>
+            </tr>
+          </thead>
+          <tbody id="statement-body"></tbody>
+        </table>
+        <div class="pager">
+          <p id="pagination-status" data-testid="pagination-status" aria-live="polite"></p>
+          <div class="row">
+            <button type="button" class="btn btn--sm" id="pagination-prev" data-testid="pagination-prev">Previous</button>
+            <button type="button" class="btn btn--sm" id="pagination-next" data-testid="pagination-next">Next</button>
+          </div>
+        </div>
+      </div>
+      <div class="api-row"><code class="api">GET &hellip;/statements?page=2&amp;size=20</code></div>
+    </div>
+
+    <div id="stmt-empty" class="hidden" style="margin-top:var(--s-4)">
+      <div class="empty" data-testid="statement-empty-state">
+        <h3>No transactions on this account yet</h3>
+        <p>This account has not sent or received money. When it does, entries appear here most recent first.</p>
+        <a class="btn btn--primary" href="E6-S4.html">Make a transfer</a>
+      </div>
+      <div class="alert a-info" role="note" style="margin-top:var(--s-4)">
+        <h3>This is a 200, not a 404</h3>
+        <p>An account with no transactions returns <span class="mono">200</span> with
+          <span class="mono">{ "items": [], "total": 0, "total_pages": 0 }</span>. It is not an error, it is not a
+          missing resource, and it must never leave a spinner on screen (E-20).</p>
+      </div>
+    </div>
+
+    <div id="stmt-loading" class="hidden" style="margin-top:var(--s-4)" aria-busy="true">
+      <div class="tbl-wrap" style="padding:var(--s-5)">
+        <div class="skel" style="width:28%;height:18px"></div>
+        <div class="skel" style="width:100%;margin-top:var(--s-4)"></div>
+        <div class="skel" style="width:95%;margin-top:var(--s-3)"></div>
+        <div class="skel" style="width:88%;margin-top:var(--s-3)"></div>
+        <div class="skel" style="width:93%;margin-top:var(--s-3)"></div>
+        <div class="skel" style="width:80%;margin-top:var(--s-3)"></div>
+      </div>
+      <p class="sr-only" role="status">Loading statement</p>
+    </div>
+  </section>
+</main>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; E6-S3 accounts mockup &middot; synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Tokens from <a href="E6-S1.html">E6-S1</a>. Next: <a href="E6-S4.html">E6-S4 transfer</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  /* -------- formatMoney: decimal string in, formatted string out. No arithmetic, ever. -------- */
+  function formatMoney(value) {
+    var s = String(value), neg = s.charAt(0) === '-';
+    if (neg) { s = s.slice(1); }
+    var parts = s.split('.'), whole = parts[0] || '0', frac = ((parts[1] || '') + '00').slice(0, 2);
+    var out = '', c = 0;
+    for (var k = whole.length - 1; k >= 0; k--) {
+      out = whole.charAt(k) + out;
+      c++;
+      if (c % 3 === 0 && k > 0) { out = ',' + out; }
+    }
+    return (neg ? '−' : '') + out + '.' + frac;
+  }
+  function money(v, cls) {
+    return '<span class="money money--sm ' + (cls || '') + '"><span class="cur" aria-hidden="true">&#8377;</span>' +
+           '<span class="sr-only">Indian rupees </span>' + formatMoney(v) + '</span>';
+  }
+  function stamp(iso) { return iso.replace('T', ' ').replace('Z', ''); }
+
+  /* ---------------------------- accounts (GET /api/v1/accounts) ---------------------------- */
+  var ACCOUNTS = [
+    { id: '7b1f0b0e-1c2d-4a5b-9c8d-0e1f2a3b4c5d', account_number: 'HZN0000000101', nickname: 'Everyday Savings',
+      type: 'SAVINGS', balance: '115471.11', currency: 'INR', status: 'ACTIVE', opened_at: '2026-07-05T09:10:02Z' },
+    { id: '9c2e1d3f-4b5a-4c6d-8e7f-1a2b3c4d5e6f', account_number: 'HZN0000000102', nickname: 'Reserve Savings',
+      type: 'SAVINGS', balance: '84900.00', currency: 'INR', status: 'ACTIVE', opened_at: '2026-07-05T09:41:55Z' }
+  ];
+
+  function renderAccounts() {
+    document.getElementById('dashboard-accounts').innerHTML = ACCOUNTS.map(function (a) {
+      return '<a class="acct" href="#screen-detail" data-testid="account-card" data-account-id="' + a.id + '"' +
+        (a.isNew ? ' data-new="true"' : '') + ' data-screen-link="detail">' +
+        '<p class="eyebrow" style="color:var(--ink-600)">' + a.nickname + '</p>' +
+        '<p class="acct-num" data-testid="account-card-number">' + a.account_number + '</p>' +
+        '<p class="money money--lg" data-testid="account-balance" style="margin:var(--s-3) 0 var(--s-2)">' +
+          '<span class="cur" aria-hidden="true">&#8377;</span><span class="sr-only">Indian rupees </span>' +
+          formatMoney(a.balance) + '</p>' +
+        '<p class="small muted" style="margin:0"><span class="badge b-ok">' + a.status + '</span> &middot; ' +
+          a.type + ' &middot; ' + a.currency + '</p>' +
+        (a.isNew ? '<p class="small" style="margin:var(--s-3) 0 0;color:var(--accent-700);font-weight:700">Just opened</p>' : '') +
+      '</a>';
+    }).join('');
+  }
+  renderAccounts();
+
+  function openAccount() {
+    var n = 102 + ACCOUNTS.length;
+    ACCOUNTS.push({
+      id: 'new-' + n, account_number: '1000000001' + String(n).slice(-2), nickname: 'Savings ' + (ACCOUNTS.length + 1),
+      type: 'SAVINGS', balance: '0.00', currency: 'INR', status: 'ACTIVE',
+      opened_at: '2026-08-19T10:26:00Z', isNew: true
+    });
+    renderAccounts();
+    document.getElementById('dash-live').textContent =
+      'Savings account opened. Account number ' + ACCOUNTS[ACCOUNTS.length - 1].account_number + ', balance 0.00 rupees.';
+    document.querySelector('[data-dash="populated"]').click();
+  }
+  document.getElementById('open-account-button').addEventListener('click', openAccount);
+  document.querySelector('[data-testid="open-account-button-empty"]').addEventListener('click', openAccount);
+
+  /* --------------------- statement (GET .../statements?page=n&size=20) --------------------- */
+  var ITEMS = [
+    {id:"7c01",counterparty_account_number:"HZN0000000202",direction:"DEBIT",amount:"250.00",balance_after:"115471.11",description:"Rent share",created_at:"2026-08-19T11:02:44Z"},
+    {id:"7c02",counterparty_account_number:null,direction:"CREDIT",amount:"5000.00",balance_after:"115721.11",description:"Loan disbursement",created_at:"2026-08-18T16:20:10Z"},
+    {id:"7c03",counterparty_account_number:"HZN0000000980",direction:"DEBIT",amount:"1200.00",balance_after:"110721.11",description:"Electricity — Meridian Power",created_at:"2026-08-18T08:14:03Z"},
+    {id:"7c04",counterparty_account_number:"HZN0000000771",direction:"DEBIT",amount:"89.50",balance_after:"111921.11",description:"Coffee subscription",created_at:"2026-08-17T19:47:31Z"},
+    {id:"7c05",counterparty_account_number:"HZN0000000640",direction:"CREDIT",amount:"42500.00",balance_after:"112010.61",description:"Salary — Larkspur Analytics",created_at:"2026-08-17T09:41:12Z"},
+    {id:"7c06",counterparty_account_number:"HZN0000000202",direction:"DEBIT",amount:"3400.00",balance_after:"69510.61",description:"Rent — August",created_at:"2026-08-16T07:02:55Z"},
+    {id:"7c07",counterparty_account_number:"HZN0000000903",direction:"DEBIT",amount:"615.25",balance_after:"72910.61",description:"Groceries — Tamarind Market",created_at:"2026-08-15T18:30:44Z"},
+    {id:"7c08",counterparty_account_number:"HZN0000000202",direction:"DEBIT",amount:"120.00",balance_after:"73525.86",description:"Transfer to Kofi Mensah",created_at:"2026-08-14T12:11:09Z"},
+    {id:"7c09",counterparty_account_number:"HZN0000000305",direction:"CREDIT",amount:"1500.00",balance_after:"73645.86",description:"Transfer from Neelam Raghavan",created_at:"2026-08-13T15:55:02Z"},
+    {id:"7c10",counterparty_account_number:"HZN0000000512",direction:"DEBIT",amount:"2750.00",balance_after:"72145.86",description:"Insurance premium",created_at:"2026-08-12T09:20:18Z"},
+    {id:"7c11",counterparty_account_number:"HZN0000000418",direction:"DEBIT",amount:"349.99",balance_after:"74895.86",description:"Mobile top-up",created_at:"2026-08-11T21:04:37Z"},
+    {id:"7c12",counterparty_account_number:"HZN0000000418",direction:"CREDIT",amount:"800.00",balance_after:"75245.85",description:"Refund — Solstice Travel",created_at:"2026-08-10T13:48:50Z"},
+    {id:"7c13",counterparty_account_number:null,direction:"DEBIT",amount:"45.00",balance_after:"74445.85",description:"Outward transfer charge",created_at:"2026-08-09T06:00:00Z"},
+    {id:"7c14",counterparty_account_number:"HZN0000000733",direction:"DEBIT",amount:"6200.00",balance_after:"74490.85",description:"Tuition instalment",created_at:"2026-08-08T17:26:41Z"},
+    {id:"7c15",counterparty_account_number:"HZN0000000102",direction:"DEBIT",amount:"12000.00",balance_after:"80690.85",description:"Transfer to Reserve Savings",created_at:"2026-08-07T10:05:14Z"},
+    {id:"7c16",counterparty_account_number:"HZN0000000855",direction:"DEBIT",amount:"980.75",balance_after:"92690.85",description:"Home supplies — Cedarline",created_at:"2026-08-06T14:39:27Z"},
+    {id:"7c17",counterparty_account_number:"HZN0000000202",direction:"DEBIT",amount:"1500.00",balance_after:"93671.60",description:"Transfer to Kofi Mensah",created_at:"2026-08-05T11:12:03Z"},
+    {id:"7c18",counterparty_account_number:"HZN0000000202",direction:"CREDIT",amount:"250.00",balance_after:"95171.60",description:"Transfer from Kofi Mensah",created_at:"2026-08-04T08:55:19Z"},
+    {id:"7c19",counterparty_account_number:"HZN0000000771",direction:"DEBIT",amount:"78.40",balance_after:"94921.60",description:"Newspaper subscription",created_at:"2026-08-03T20:17:46Z"},
+    {id:"7c20",counterparty_account_number:"HZN0000000629",direction:"DEBIT",amount:"4100.00",balance_after:"95000.00",description:"Car service — Ashgrove Motors",created_at:"2026-08-02T09:33:58Z"},
+    {id:"7c21",counterparty_account_number:"HZN0000000640",direction:"CREDIT",amount:"42500.00",balance_after:"99100.00",description:"Salary — Larkspur Analytics",created_at:"2026-07-17T09:40:05Z"},
+    {id:"7c22",counterparty_account_number:"HZN0000000202",direction:"DEBIT",amount:"3400.00",balance_after:"56600.00",description:"Rent — July",created_at:"2026-07-16T07:01:22Z"},
+    {id:"7c23",counterparty_account_number:"HZN0000000102",direction:"CREDIT",amount:"60000.00",balance_after:"60000.00",description:"Opening transfer from Reserve Savings",created_at:"2026-07-05T10:00:00Z"}
+  ];
+  var SIZE = 20, page = 1;
+  var totalPages = Math.ceil(ITEMS.length / SIZE);
+
+  function renderStatement() {
+    var start = (page - 1) * SIZE, slice = ITEMS.slice(start, start + SIZE);
+    document.getElementById('statement-body').innerHTML = slice.map(function (t) {
+      var credit = t.direction === 'CREDIT';
+      return '<tr data-testid="statement-row" data-transaction-id="' + t.id + '">' +
+        '<td data-label="Posted" class="ts">' + stamp(t.created_at) + '</td>' +
+        '<td data-label="Description">' + t.description + '</td>' +
+        '<td data-label="Counterparty" class="mono">' + (t.counterparty_account_number || '&mdash;') + '</td>' +
+        '<td data-label="Direction"><span class="badge ' + (credit ? 'b-ok' : 'b-danger') + '" data-testid="statement-direction">' + t.direction + '</span></td>' +
+        '<td data-label="Amount" class="num" data-testid="statement-amount">' +
+          money((credit ? '' : '-') + t.amount, credit ? 'money--credit' : '') + '</td>' +
+        '<td data-label="Balance after" class="num" data-testid="statement-balance-after">' + money(t.balance_after) + '</td>' +
+      '</tr>';
+    }).join('');
+    var from = start + 1, to = start + slice.length;
+    document.getElementById('pagination-status').textContent =
+      'Showing ' + from + '–' + to + ' of ' + ITEMS.length + ' · page ' + page + ' of ' + totalPages + ' · size ' + SIZE;
+    document.getElementById('pagination-prev').disabled = page === 1;
+    document.getElementById('pagination-next').disabled = page === totalPages;
+  }
+  renderStatement();
+  document.getElementById('pagination-prev').addEventListener('click', function () { if (page > 1) { page--; renderStatement(); } });
+  document.getElementById('pagination-next').addEventListener('click', function () { if (page < totalPages) { page++; renderStatement(); } });
+
+  /* ------------------------------- state switchers ------------------------------- */
+  function wire(attr, ids, prefix) {
+    document.querySelectorAll('[data-' + attr + ']').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('[data-' + attr + ']').forEach(function (x) {
+          x.setAttribute('aria-pressed', String(x === b));
+        });
+        ids.forEach(function (id) {
+          document.getElementById(prefix + id).classList.toggle('hidden', id !== b.dataset[attr]);
+        });
+      });
+    });
+  }
+  wire('dash', ['populated', 'empty'], 'dash-');
+  wire('stmt', ['populated', 'empty', 'loading'], 'stmt-');
+  wire('screen', ['dash', 'detail'], 'screen-');
+
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('[data-screen-link]');
+    if (!link) return;
+    e.preventDefault();
+    document.querySelector('[data-screen="' + link.dataset.screenLink + '"]').click();
+    window.scrollTo(0, 0);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5515 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ClaudeForge Banking Suite API",
+    "version": "1.0.0",
+    "description": "Horizon Bank retail banking platform (business case BC-AINE-001).\n\nConventions:\n- Every money field is a decimal STRING matching ^-?\\d{1,16}(\\.\\d{1,2})?$, never a JSON number (NFR-01, DD-05, DD-16).\n- Every 4xx and 5xx response uses the uniform ErrorEnvelope (DD-10) without exception.\n- Paginated collections use ?page=&size= and return {items, page, page_size, total, total_pages} (DD-11).\n- X-Correlation-ID is accepted on request and echoed on every response (DD-18).\n- No rate limiting exists: no acceptance criterion requires it and none is implemented.\n- Deliberately absent: transfer caps, daily limits and velocity controls; any requirement that a transfer destination be a saved beneficiary; any applicant age or date-of-birth gate; any loan eligibility computation. Loan approval is an administrator decision (AC-08).",
+    "contact": {
+      "name": "Horizon Bank Digital Engineering",
+      "email": "engineering@horizon.test"
+    },
+    "license": {
+      "name": "Proprietary — internal capstone artefact"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development (the only environment; BRD OUT-04)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Infrastructure",
+      "description": "Liveness. Unversioned surface (DD-17)."
+    },
+    {
+      "name": "Auth",
+      "description": "Registration, KYC stub, login, current principal (AC-01)."
+    },
+    {
+      "name": "Accounts",
+      "description": "Savings accounts, balances and statements (AC-02, AC-03)."
+    },
+    {
+      "name": "Beneficiaries",
+      "description": "Saved payees. A convenience feature, never a transfer precondition (AC-06, DD-13)."
+    },
+    {
+      "name": "Transfers",
+      "description": "Atomic money movement (AC-04, AC-05)."
+    },
+    {
+      "name": "Loans",
+      "description": "Customer loan application and status timeline (AC-07)."
+    },
+    {
+      "name": "Admin",
+      "description": "Administrator review queue, audit ledger and notification log (AC-08, AC-09, AC-10)."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Infrastructure"
+        ],
+        "operationId": "getHealth",
+        "summary": "Liveness probe",
+        "description": "Unversioned and outside /api/v1 because it is infrastructure rather than product surface (DD-17). Performs a real database round-trip and answers within 1 second of successful startup (NFR-07).",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is healthy.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database round-trip failed.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "INTERNAL_ERROR": {
+                    "summary": "INTERNAL_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred. Quote the correlation id when reporting it.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "register",
+        "summary": "Register a customer in PENDING_KYC",
+        "description": "AC-01. The created customer is always role CUSTOMER; a client-supplied role is ignored (OUT-11). date_of_birth is profile data with no eligibility gate attached (DD-14.3).",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer created in PENDING_KYC.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSummary"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EMAIL_ALREADY_REGISTERED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "EMAIL_ALREADY_REGISTERED": {
+                    "summary": "EMAIL_ALREADY_REGISTERED",
+                    "value": {
+                      "error": {
+                        "code": "EMAIL_ALREADY_REGISTERED",
+                        "message": "An account already exists for this email address.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNSUPPORTED_MEDIA_TYPE": {
+                    "summary": "UNSUPPORTED_MEDIA_TYPE",
+                    "value": {
+                      "error": {
+                        "code": "UNSUPPORTED_MEDIA_TYPE",
+                        "message": "Request body must be application/json.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/kyc": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "submitKyc",
+        "summary": "Submit KYC and receive a deterministic stub verdict",
+        "description": "AC-01. Anonymous because login is blocked until KYC passes; the caller proves control with email and password. A VERIFIED verdict activates the customer in the same transaction.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verdict returned. A REJECTED verdict is still a 200: the submission succeeded.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycVerdict"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "INVALID_CREDENTIALS": {
+                    "summary": "INVALID_CREDENTIALS",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_CREDENTIALS",
+                        "message": "Email or password is incorrect.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Customer already holds a VERIFIED record (E-10).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "KYC_ALREADY_SUBMITTED": {
+                    "summary": "KYC_ALREADY_SUBMITTED",
+                    "value": {
+                      "error": {
+                        "code": "KYC_ALREADY_SUBMITTED",
+                        "message": "Identity verification has already been completed for this customer.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unrecognised document_type or malformed document_number.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "summary": "Issue a bearer token",
+        "description": "AC-01. A pre-KYC login returns 403 PENDING_KYC, deliberately distinguishable from the 401 returned for bad credentials (E-09).",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Access token issued.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown email or wrong password. Identical for both so account existence is not disclosed.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "INVALID_CREDENTIALS": {
+                    "summary": "INVALID_CREDENTIALS",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_CREDENTIALS",
+                        "message": "Email or password is incorrect.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Correct credentials, customer not yet ACTIVE (E-09).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "PENDING_KYC": {
+                    "summary": "PENDING_KYC",
+                    "value": {
+                      "error": {
+                        "code": "PENDING_KYC",
+                        "message": "Your identity check is not yet complete. Submit KYC before signing in.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "getMe",
+        "summary": "Return the current principal",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current principal.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Principal"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed or expired bearer token (E-15).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "TOKEN_EXPIRED": {
+                    "summary": "TOKEN_EXPIRED",
+                    "value": {
+                      "error": {
+                        "code": "TOKEN_EXPIRED",
+                        "message": "Your session has expired. Sign in again.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "operationId": "openAccount",
+        "summary": "Open a savings account at 0.00",
+        "description": "AC-02. Balance initialises to the string \"0.00\". There is no minimum opening balance: one would contradict AC-02 (OUT-08).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account opened.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                },
+                "example": {
+                  "id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "account_number": "HZN0000000241",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "type": "SAVINGS",
+                  "balance": "0.00",
+                  "currency": "INR",
+                  "status": "ACTIVE",
+                  "opened_at": "2026-08-19T09:45:00.912Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No bearer token; no account row is created.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "operationId": "listAccounts",
+        "summary": "List the caller's own accounts and balances",
+        "description": "AC-03. Scoped to the calling principal; another customer's accounts never appear.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's accounts.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Account"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                    "account_number": "HZN0000000241",
+                    "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                    "type": "SAVINGS",
+                    "balance": "0.00",
+                    "currency": "INR",
+                    "status": "ACTIVE",
+                    "opened_at": "2026-08-19T09:45:00.912Z"
+                  },
+                  {
+                    "id": "c4a2b0e3-9d58-4f7b-8e24-6a3d8f1b2c59",
+                    "account_number": "HZN0000000242",
+                    "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                    "type": "SAVINGS",
+                    "balance": "1250.00",
+                    "currency": "INR",
+                    "status": "ACTIVE",
+                    "opened_at": "2026-08-19T09:45:00.912Z"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/statements": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "operationId": "listStatements",
+        "summary": "Paginated statement for one owned account",
+        "description": "AC-03. Ordered most-recent-first (A-06). An account with no transactions returns 200 with an empty items array, never 404 (E-20).",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Must be owned by the caller."
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of transactions.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfTransaction"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Account belongs to another customer (E-19). Not 404, not 200.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "OWNERSHIP_VIOLATION": {
+                    "summary": "OWNERSHIP_VIOLATION",
+                    "value": {
+                      "error": {
+                        "code": "OWNERSHIP_VIOLATION",
+                        "message": "You do not have access to this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ACCOUNT_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ACCOUNT_NOT_FOUND": {
+                    "summary": "ACCOUNT_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "ACCOUNT_NOT_FOUND",
+                        "message": "No account exists for the supplied reference.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "page < 1 or size outside 1..100.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/beneficiaries": {
+      "post": {
+        "tags": [
+          "Beneficiaries"
+        ],
+        "operationId": "addBeneficiary",
+        "summary": "Save a payee",
+        "description": "AC-06. A convenience feature. Saving a beneficiary is never a precondition of a transfer (DD-13).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBeneficiaryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Beneficiary saved.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Beneficiary"
+                },
+                "example": {
+                  "id": "5c6d7e8f-9a0b-41c2-83d4-5e6f7a8b9c0d",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "nickname": "Flatmate",
+                  "beneficiary_name": "Grace Sample",
+                  "beneficiary_account_number": "HZN0000000318",
+                  "created_at": "2026-08-19T11:10:44.870Z",
+                  "deleted_at": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "beneficiary_account_number matches no account.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ACCOUNT_NOT_FOUND": {
+                    "summary": "ACCOUNT_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "ACCOUNT_NOT_FOUND",
+                        "message": "No account exists for the supplied reference.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The caller already has an active beneficiary with that account number.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "DUPLICATE_BENEFICIARY": {
+                    "summary": "DUPLICATE_BENEFICIARY",
+                    "value": {
+                      "error": {
+                        "code": "DUPLICATE_BENEFICIARY",
+                        "message": "This account number is already saved as a beneficiary.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Beneficiaries"
+        ],
+        "operationId": "listBeneficiaries",
+        "summary": "List the caller's active saved payees",
+        "description": "AC-06. Soft-deleted rows are excluded (DD-19).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's active beneficiaries.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Beneficiary"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "5c6d7e8f-9a0b-41c2-83d4-5e6f7a8b9c0d",
+                    "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                    "nickname": "Flatmate",
+                    "beneficiary_name": "Grace Sample",
+                    "beneficiary_account_number": "HZN0000000318",
+                    "created_at": "2026-08-19T11:10:44.870Z",
+                    "deleted_at": null
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/beneficiaries/{beneficiary_id}": {
+      "delete": {
+        "tags": [
+          "Beneficiaries"
+        ],
+        "operationId": "removeBeneficiary",
+        "summary": "Soft-delete a saved payee",
+        "description": "AC-06, DD-19. Sets deleted_at; the row remains so historical transaction and audit references are never orphaned (A-07).",
+        "parameters": [
+          {
+            "name": "beneficiary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Beneficiary soft-deleted. Empty body.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Beneficiary belongs to another customer; it stays active.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "OWNERSHIP_VIOLATION": {
+                    "summary": "OWNERSHIP_VIOLATION",
+                    "value": {
+                      "error": {
+                        "code": "OWNERSHIP_VIOLATION",
+                        "message": "You do not have access to this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown id, or already soft-deleted.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "BENEFICIARY_NOT_FOUND": {
+                    "summary": "BENEFICIARY_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "BENEFICIARY_NOT_FOUND",
+                        "message": "No beneficiary exists for the supplied identifier.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transfers": {
+      "post": {
+        "tags": [
+          "Transfers"
+        ],
+        "operationId": "createTransfer",
+        "summary": "Atomic transfer to any valid active account",
+        "description": "AC-04, AC-05. The destination is a plain account number supplied directly; there is no beneficiary_id field and no beneficiary is required (DD-13). The whole operation is one transaction: lock source, re-read balance, evaluate policy, debit, credit, two transaction rows, audit entry, notification enqueue, commit. Any failure rolls everything back and moves zero money. There is no transfer cap, daily limit or velocity control (DD-14.1).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transfer completed.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                },
+                "example": {
+                  "id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+                  "source_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "destination_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+                  "amount": "250.00",
+                  "status": "COMPLETED",
+                  "failure_code": null,
+                  "description": "Rent share",
+                  "source_balance_after": "750.00",
+                  "created_at": "2026-08-19T11:03:21.552Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "source_account_id belongs to another customer.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "OWNERSHIP_VIOLATION": {
+                    "summary": "OWNERSHIP_VIOLATION",
+                    "value": {
+                      "error": {
+                        "code": "OWNERSHIP_VIOLATION",
+                        "message": "You do not have access to this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "destination_account_number matches no account (E-03).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ACCOUNT_NOT_FOUND": {
+                    "summary": "ACCOUNT_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "ACCOUNT_NOT_FOUND",
+                        "message": "No account exists for the supplied reference.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Policy rejection. Both balances are unchanged and no transaction rows are written (E-01, E-02, E-03, E-05, E-06).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "INSUFFICIENT_FUNDS": {
+                    "summary": "INSUFFICIENT_FUNDS",
+                    "value": {
+                      "error": {
+                        "code": "INSUFFICIENT_FUNDS",
+                        "message": "Transfer declined: available balance is lower than the requested amount.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "SELF_TRANSFER": {
+                    "summary": "SELF_TRANSFER",
+                    "value": {
+                      "error": {
+                        "code": "SELF_TRANSFER",
+                        "message": "The destination account must differ from the source account.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "INACTIVE_DESTINATION_ACCOUNT": {
+                    "summary": "INACTIVE_DESTINATION_ACCOUNT",
+                    "value": {
+                      "error": {
+                        "code": "INACTIVE_DESTINATION_ACCOUNT",
+                        "message": "The destination account is closed.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "MONEY_PRECISION": {
+                    "summary": "MONEY_PRECISION",
+                    "value": {
+                      "error": {
+                        "code": "MONEY_PRECISION",
+                        "message": "Amount must have at most 2 decimal places.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Transfers"
+        ],
+        "operationId": "listTransfers",
+        "summary": "The caller's own transfer history including failed attempts",
+        "description": "A-08. A FAILED attempt is recorded with a failure_code but moved no money.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COMPLETED",
+                "FAILED"
+              ]
+            },
+            "description": "Omitted returns both."
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of transfers.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfTransfer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/loans": {
+      "post": {
+        "tags": [
+          "Loans"
+        ],
+        "operationId": "applyForLoan",
+        "summary": "Apply for a personal loan",
+        "description": "AC-07. Structural validation only: principal strictly positive with at most 2 decimal places, tenure a positive whole number of months. No eligibility computation of any kind exists (DD-14.4); declared_monthly_income is optional and informational and no rule reads it.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLoanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Loan application created in APPLIED.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanApplication"
+                },
+                "example": {
+                  "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "principal": "5000.00",
+                  "tenure_months": 24,
+                  "purpose": "Home improvement",
+                  "declared_monthly_income": "3200.00",
+                  "status": "APPLIED",
+                  "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "created_at": "2026-08-19T11:20:00.000Z",
+                  "updated_at": "2026-08-19T11:20:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "disbursement_account_id belongs to another customer.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "OWNERSHIP_VIOLATION": {
+                    "summary": "OWNERSHIP_VIOLATION",
+                    "value": {
+                      "error": {
+                        "code": "OWNERSHIP_VIOLATION",
+                        "message": "You do not have access to this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ACCOUNT_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ACCOUNT_NOT_FOUND": {
+                    "summary": "ACCOUNT_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "ACCOUNT_NOT_FOUND",
+                        "message": "No account exists for the supplied reference.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structurally invalid principal or tenure.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "MONEY_PRECISION": {
+                    "summary": "MONEY_PRECISION",
+                    "value": {
+                      "error": {
+                        "code": "MONEY_PRECISION",
+                        "message": "Amount must have at most 2 decimal places.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Loans"
+        ],
+        "operationId": "listLoans",
+        "summary": "The caller's own loan applications",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's loans.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LoanApplication"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                    "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                    "principal": "5000.00",
+                    "tenure_months": 24,
+                    "purpose": "Home improvement",
+                    "declared_monthly_income": "3200.00",
+                    "status": "UNDER_REVIEW",
+                    "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                    "created_at": "2026-08-19T11:20:00.000Z",
+                    "updated_at": "2026-08-19T11:33:12.400Z"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/loans/{loan_id}": {
+      "get": {
+        "tags": [
+          "Loans"
+        ],
+        "operationId": "getLoan",
+        "summary": "One loan with its full ordered status timeline",
+        "description": "AC-07. timeline is ordered oldest-first so the customer reads the history forwards.",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Loan with timeline.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                },
+                "example": {
+                  "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "principal": "5000.00",
+                  "tenure_months": 24,
+                  "purpose": "Home improvement",
+                  "declared_monthly_income": "3200.00",
+                  "status": "APPROVED",
+                  "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "created_at": "2026-08-19T11:20:00.000Z",
+                  "updated_at": "2026-08-19T11:41:55.180Z",
+                  "timeline": [
+                    {
+                      "id": "aa11bb22-cc33-4d44-8e55-ff66aa77bb88",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": null,
+                      "to_status": "APPLIED",
+                      "actor_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:20:00.000Z"
+                    },
+                    {
+                      "id": "bb22cc33-dd44-4e55-9f66-aa77bb88cc99",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "APPLIED",
+                      "to_status": "UNDER_REVIEW",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:33:12.400Z"
+                    },
+                    {
+                      "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "UNDER_REVIEW",
+                      "to_status": "APPROVED",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": "Documents complete; approved by operations.",
+                      "created_at": "2026-08-19T11:41:55.180Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Loan belongs to another customer (E-19).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "OWNERSHIP_VIOLATION": {
+                    "summary": "OWNERSHIP_VIOLATION",
+                    "value": {
+                      "error": {
+                        "code": "OWNERSHIP_VIOLATION",
+                        "message": "You do not have access to this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LOAN_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "LOAN_NOT_FOUND": {
+                    "summary": "LOAN_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "LOAN_NOT_FOUND",
+                        "message": "No loan application exists for the supplied identifier.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/loans": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "listAdminLoans",
+        "summary": "Administrator loan review queue",
+        "description": "AC-08. Requires the ADMIN role; a CUSTOMER token receives 403 (E-14).",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "APPLIED",
+                "UNDER_REVIEW",
+                "APPROVED",
+                "REJECTED",
+                "DISBURSED"
+              ]
+            },
+            "description": "Omitted returns all states."
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of loan applications.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfAdminLoan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CUSTOMER token on an admin route (E-14).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/loans/{loan_id}/review": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "reviewLoan",
+        "summary": "Move APPLIED to UNDER_REVIEW",
+        "description": "AC-07. A reason is optional here; it is mandatory only on approve and reject.",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan with its updated status and appended timeline entry.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                },
+                "example": {
+                  "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "principal": "5000.00",
+                  "tenure_months": 24,
+                  "purpose": "Home improvement",
+                  "declared_monthly_income": "3200.00",
+                  "status": "APPROVED",
+                  "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "created_at": "2026-08-19T11:20:00.000Z",
+                  "updated_at": "2026-08-19T11:41:55.180Z",
+                  "timeline": [
+                    {
+                      "id": "aa11bb22-cc33-4d44-8e55-ff66aa77bb88",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": null,
+                      "to_status": "APPLIED",
+                      "actor_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:20:00.000Z"
+                    },
+                    {
+                      "id": "bb22cc33-dd44-4e55-9f66-aa77bb88cc99",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "APPLIED",
+                      "to_status": "UNDER_REVIEW",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:33:12.400Z"
+                    },
+                    {
+                      "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "UNDER_REVIEW",
+                      "to_status": "APPROVED",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": "Documents complete; approved by operations.",
+                      "created_at": "2026-08-19T11:41:55.180Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CUSTOMER token on an admin route (E-14).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LOAN_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "LOAN_NOT_FOUND": {
+                    "summary": "LOAN_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "LOAN_NOT_FOUND",
+                        "message": "No loan application exists for the supplied identifier.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Loan is not APPLIED (E-11).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ILLEGAL_LOAN_TRANSITION": {
+                    "summary": "ILLEGAL_LOAN_TRANSITION",
+                    "value": {
+                      "error": {
+                        "code": "ILLEGAL_LOAN_TRANSITION",
+                        "message": "The loan cannot move to that state from its current state.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/loans/{loan_id}/approve": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "approveLoan",
+        "summary": "Move UNDER_REVIEW to APPROVED with a mandatory reason",
+        "description": "AC-08. The approval decision is the administrator's alone: no eligibility rule, threshold, ratio or score is evaluated at any point (DD-14.4). A non-empty reason is mandatory (E-13).",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan with its updated status and appended timeline entry.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                },
+                "example": {
+                  "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "principal": "5000.00",
+                  "tenure_months": 24,
+                  "purpose": "Home improvement",
+                  "declared_monthly_income": "3200.00",
+                  "status": "APPROVED",
+                  "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "created_at": "2026-08-19T11:20:00.000Z",
+                  "updated_at": "2026-08-19T11:41:55.180Z",
+                  "timeline": [
+                    {
+                      "id": "aa11bb22-cc33-4d44-8e55-ff66aa77bb88",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": null,
+                      "to_status": "APPLIED",
+                      "actor_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:20:00.000Z"
+                    },
+                    {
+                      "id": "bb22cc33-dd44-4e55-9f66-aa77bb88cc99",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "APPLIED",
+                      "to_status": "UNDER_REVIEW",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:33:12.400Z"
+                    },
+                    {
+                      "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "UNDER_REVIEW",
+                      "to_status": "APPROVED",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": "Documents complete; approved by operations.",
+                      "created_at": "2026-08-19T11:41:55.180Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CUSTOMER token on an admin route (E-14).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LOAN_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "LOAN_NOT_FOUND": {
+                    "summary": "LOAN_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "LOAN_NOT_FOUND",
+                        "message": "No loan application exists for the supplied identifier.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Loan is not UNDER_REVIEW, including an already-REJECTED loan (E-11, E-12).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ILLEGAL_LOAN_TRANSITION": {
+                    "summary": "ILLEGAL_LOAN_TRANSITION",
+                    "value": {
+                      "error": {
+                        "code": "ILLEGAL_LOAN_TRANSITION",
+                        "message": "The loan cannot move to that state from its current state.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Reason missing, empty or whitespace-only. Status unchanged; no transition, audit entry or notification is written (E-13).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "DECISION_REASON_REQUIRED": {
+                    "summary": "DECISION_REASON_REQUIRED",
+                    "value": {
+                      "error": {
+                        "code": "DECISION_REASON_REQUIRED",
+                        "message": "A decision reason is required to approve or reject a loan.",
+                        "field_errors": [
+                          {
+                            "field": "reason",
+                            "message": "Must not be empty."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/loans/{loan_id}/reject": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "rejectLoan",
+        "summary": "Move UNDER_REVIEW to REJECTED with a mandatory reason",
+        "description": "AC-08. The recorded reason is surfaced to the customer on the loan timeline.",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan with its updated status and appended timeline entry.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                },
+                "example": {
+                  "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "principal": "5000.00",
+                  "tenure_months": 24,
+                  "purpose": "Home improvement",
+                  "declared_monthly_income": "3200.00",
+                  "status": "APPROVED",
+                  "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "created_at": "2026-08-19T11:20:00.000Z",
+                  "updated_at": "2026-08-19T11:41:55.180Z",
+                  "timeline": [
+                    {
+                      "id": "aa11bb22-cc33-4d44-8e55-ff66aa77bb88",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": null,
+                      "to_status": "APPLIED",
+                      "actor_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:20:00.000Z"
+                    },
+                    {
+                      "id": "bb22cc33-dd44-4e55-9f66-aa77bb88cc99",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "APPLIED",
+                      "to_status": "UNDER_REVIEW",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:33:12.400Z"
+                    },
+                    {
+                      "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "UNDER_REVIEW",
+                      "to_status": "APPROVED",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": "Documents complete; approved by operations.",
+                      "created_at": "2026-08-19T11:41:55.180Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CUSTOMER token on an admin route (E-14).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LOAN_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "LOAN_NOT_FOUND": {
+                    "summary": "LOAN_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "LOAN_NOT_FOUND",
+                        "message": "No loan application exists for the supplied identifier.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Loan is not UNDER_REVIEW (E-11, E-12).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ILLEGAL_LOAN_TRANSITION": {
+                    "summary": "ILLEGAL_LOAN_TRANSITION",
+                    "value": {
+                      "error": {
+                        "code": "ILLEGAL_LOAN_TRANSITION",
+                        "message": "The loan cannot move to that state from its current state.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Reason missing, empty or whitespace-only (E-13).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "DECISION_REASON_REQUIRED": {
+                    "summary": "DECISION_REASON_REQUIRED",
+                    "value": {
+                      "error": {
+                        "code": "DECISION_REASON_REQUIRED",
+                        "message": "A decision reason is required to approve or reject a loan.",
+                        "field_errors": [
+                          {
+                            "field": "reason",
+                            "message": "Must not be empty."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/loans/{loan_id}/disburse": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "disburseLoan",
+        "summary": "Move APPROVED to DISBURSED and credit the applicant's account",
+        "description": "AC-07, A-04. Credits an ACTIVE SAVINGS account owned by the applicant by exactly the principal, in the same transaction as the status change. Produces one CREDIT transaction row with transfer_id null.",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisburseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan with its updated status and appended timeline entry.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                },
+                "example": {
+                  "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                  "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                  "principal": "5000.00",
+                  "tenure_months": 24,
+                  "purpose": "Home improvement",
+                  "declared_monthly_income": "3200.00",
+                  "status": "APPROVED",
+                  "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+                  "created_at": "2026-08-19T11:20:00.000Z",
+                  "updated_at": "2026-08-19T11:41:55.180Z",
+                  "timeline": [
+                    {
+                      "id": "aa11bb22-cc33-4d44-8e55-ff66aa77bb88",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": null,
+                      "to_status": "APPLIED",
+                      "actor_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:20:00.000Z"
+                    },
+                    {
+                      "id": "bb22cc33-dd44-4e55-9f66-aa77bb88cc99",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "APPLIED",
+                      "to_status": "UNDER_REVIEW",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": null,
+                      "created_at": "2026-08-19T11:33:12.400Z"
+                    },
+                    {
+                      "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+                      "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                      "from_status": "UNDER_REVIEW",
+                      "to_status": "APPROVED",
+                      "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+                      "reason": "Documents complete; approved by operations.",
+                      "created_at": "2026-08-19T11:41:55.180Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CUSTOMER token, or a target account that does not belong to the applicant.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "OWNERSHIP_VIOLATION": {
+                    "summary": "OWNERSHIP_VIOLATION",
+                    "value": {
+                      "error": {
+                        "code": "OWNERSHIP_VIOLATION",
+                        "message": "You do not have access to this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LOAN_NOT_FOUND / ACCOUNT_NOT_FOUND",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "LOAN_NOT_FOUND": {
+                    "summary": "LOAN_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "LOAN_NOT_FOUND",
+                        "message": "No loan application exists for the supplied identifier.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "ACCOUNT_NOT_FOUND": {
+                    "summary": "ACCOUNT_NOT_FOUND",
+                    "value": {
+                      "error": {
+                        "code": "ACCOUNT_NOT_FOUND",
+                        "message": "No account exists for the supplied reference.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Loan is not APPROVED, or the target account is CLOSED and no money moves (E-22).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "ILLEGAL_LOAN_TRANSITION": {
+                    "summary": "ILLEGAL_LOAN_TRANSITION",
+                    "value": {
+                      "error": {
+                        "code": "ILLEGAL_LOAN_TRANSITION",
+                        "message": "The loan cannot move to that state from its current state.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  },
+                  "DISBURSEMENT_ACCOUNT_INACTIVE": {
+                    "summary": "DISBURSEMENT_ACCOUNT_INACTIVE",
+                    "value": {
+                      "error": {
+                        "code": "DISBURSEMENT_ACCOUNT_INACTIVE",
+                        "message": "The disbursement account is closed. No funds were moved.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No disbursement account available on either the request or the application.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/audit": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "listAuditEntries",
+        "summary": "Filterable append-only audit ledger",
+        "description": "AC-09, NFR-02. Read-only: no write verb is routed against this path, so POST, PUT, PATCH and DELETE return 405. Filtering is by first-class indexed columns only; the metadata object is never a WHERE predicate (DD-15).",
+        "parameters": [
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Transfer",
+            "description": "e.g. Transfer, LoanApplication, Account, Beneficiary, Customer."
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "actor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "TRANSFER_COMPLETED"
+          },
+          {
+            "name": "occurred_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Inclusive lower bound."
+          },
+          {
+            "name": "occurred_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Inclusive upper bound."
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of audit entries, most-recent-first. A range excluding every entry returns an empty items array.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfAuditEntry"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN_ROLE",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "The ledger is append-only; no write verb is routed against it (NFR-02).",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "METHOD_NOT_ALLOWED": {
+                    "summary": "METHOD_NOT_ALLOWED",
+                    "value": {
+                      "error": {
+                        "code": "METHOD_NOT_ALLOWED",
+                        "message": "The audit ledger is append-only and exposes no write operation.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/notifications": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "listNotifications",
+        "summary": "Dispatched notification log",
+        "description": "AC-10. Lists notifications produced by transfers and by every loan state transition.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "QUEUED",
+                "SENT",
+                "FAILED"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "EMAIL",
+                "SMS"
+              ]
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "TRANSFER_COMPLETED"
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of notifications, most-recent-first.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfNotification"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "UNAUTHENTICATED": {
+                    "summary": "UNAUTHENTICATED",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Authentication is required to access this resource.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN_ROLE",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "FORBIDDEN_ROLE": {
+                    "summary": "FORBIDDEN_ROLE",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN_ROLE",
+                        "message": "This operation requires an administrator role.",
+                        "field_errors": null,
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "examples": {
+                  "VALIDATION_ERROR": {
+                    "summary": "VALIDATION_ERROR",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "The request could not be processed as submitted.",
+                        "field_errors": [
+                          {
+                            "field": "amount",
+                            "message": "Must be a positive decimal with at most 2 decimal places."
+                          }
+                        ],
+                        "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "HS256 JWT carrying sub (customer id), role, iat and exp. Lifetime is settings.jwt_expiry_minutes, default 30. Stateless; no refresh token. Enforced at the API layer by require_principal; admin routes additionally require require_admin (NFR-04)."
+      }
+    },
+    "headers": {
+      "XCorrelationId": {
+        "description": "Correlation id for this request, echoed on every response including errors (DD-18).",
+        "schema": {
+          "type": "string"
+        },
+        "example": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+      }
+    },
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "description": "1-based page number. An out-of-range page returns 200 with an empty items array."
+      },
+      "Size": {
+        "name": "size",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "description": "Page size, default 20 from settings.statement_page_size, maximum 100 (DD-11). Note the response field is named page_size."
+      },
+      "CorrelationId": {
+        "name": "X-Correlation-ID",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Optional. If absent the middleware generates a UUID4 (DD-18)."
+      }
+    },
+    "schemas": {
+      "FieldError": {
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Name of the offending request field.",
+            "example": "amount"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable explanation for this field.",
+            "example": "Must have at most 2 decimal places."
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "correlation_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "VALIDATION_ERROR",
+              "MONEY_PRECISION",
+              "UNAUTHENTICATED",
+              "INVALID_CREDENTIALS",
+              "TOKEN_EXPIRED",
+              "PENDING_KYC",
+              "FORBIDDEN_ROLE",
+              "OWNERSHIP_VIOLATION",
+              "ACCOUNT_NOT_FOUND",
+              "BENEFICIARY_NOT_FOUND",
+              "LOAN_NOT_FOUND",
+              "EMAIL_ALREADY_REGISTERED",
+              "KYC_ALREADY_SUBMITTED",
+              "DUPLICATE_BENEFICIARY",
+              "ILLEGAL_LOAN_TRANSITION",
+              "DISBURSEMENT_ACCOUNT_INACTIVE",
+              "SELF_TRANSFER",
+              "INACTIVE_DESTINATION_ACCOUNT",
+              "INSUFFICIENT_FUNDS",
+              "DECISION_REASON_REQUIRED",
+              "METHOD_NOT_ALLOWED",
+              "UNSUPPORTED_MEDIA_TYPE",
+              "INTERNAL_ERROR"
+            ],
+            "description": "Stable machine-readable error identifier (DD-10). Never localised.",
+            "example": "INSUFFICIENT_FUNDS"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message safe to display. Contains no PII, token, password or document number.",
+            "example": "Transfer declined: available balance is lower than the requested amount."
+          },
+          "field_errors": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "description": "Present only for input-validation failures; null otherwise."
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "Identical to the X-Correlation-ID response header (DD-18).",
+            "example": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "description": "Uniform error envelope used by every 4xx and 5xx response without exception (DD-10).",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        }
+      },
+      "PageMeta": {
+        "type": "object",
+        "required": [
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "description": "Pagination metadata (DD-11). Query parameter is 'size'; response field is 'page_size'.",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 25
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "object",
+        "required": [
+          "status",
+          "database",
+          "version"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ],
+            "description": "Overall liveness.",
+            "example": "ok"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ],
+            "description": "Result of a real SELECT 1 round-trip (NFR-07).",
+            "example": "ok"
+          },
+          "version": {
+            "type": "string",
+            "description": "Application version.",
+            "example": "1.0.0"
+          }
+        },
+        "example": {
+          "status": "ok",
+          "database": "ok",
+          "version": "1.0.0"
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "full_name",
+          "date_of_birth"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Unique. Lower-cased on store.",
+            "example": "ada.tester@horizon.test"
+          },
+          "password": {
+            "type": "string",
+            "description": "Never logged, never returned, stored only as a KDF hash.",
+            "minLength": 12,
+            "maxLength": 128,
+            "example": "correct-horse-battery"
+          },
+          "full_name": {
+            "type": "string",
+            "description": "Customer's full name.",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Ada Tester"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "example": "1991-04-17",
+            "description": "Profile data only. No rule reads it: there is no minimum applicant age and no date-of-birth eligibility gate (DD-14.3)."
+          }
+        },
+        "example": {
+          "email": "ada.tester@horizon.test",
+          "password": "correct-horse-battery",
+          "full_name": "Ada Tester",
+          "date_of_birth": "1991-04-17"
+        }
+      },
+      "CustomerSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "role",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Customer identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ada.tester@horizon.test"
+          },
+          "full_name": {
+            "type": "string",
+            "description": "Customer's full name.",
+            "example": "Ada Tester"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "ADMIN"
+            ],
+            "description": "Always CUSTOMER for a registered account; ADMIN is seeded only.",
+            "example": "CUSTOMER"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_KYC",
+              "ACTIVE",
+              "SUSPENDED"
+            ],
+            "description": "Lifecycle status.",
+            "example": "PENDING_KYC"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Registration timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          }
+        },
+        "example": {
+          "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "email": "ada.tester@horizon.test",
+          "full_name": "Ada Tester",
+          "role": "CUSTOMER",
+          "status": "PENDING_KYC",
+          "created_at": "2026-08-19T09:41:03.117Z"
+        }
+      },
+      "KycRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "document_type",
+          "document_number"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ada.tester@horizon.test"
+          },
+          "password": {
+            "type": "string",
+            "description": "Proves control of the account before activation.",
+            "minLength": 12,
+            "maxLength": 128,
+            "example": "correct-horse-battery"
+          },
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "PASSPORT",
+              "NATIONAL_ID",
+              "DRIVING_LICENCE"
+            ],
+            "description": "Recognised document types. Anything else is a 422.",
+            "example": "PASSPORT"
+          },
+          "document_number": {
+            "type": "string",
+            "description": "Redacted in every log line (NFR-03). The reserved synthetic value X0000000 always yields REJECTED (A-02).",
+            "pattern": "^[A-Z][0-9]{7}$",
+            "example": "P1234567"
+          }
+        },
+        "example": {
+          "email": "ada.tester@horizon.test",
+          "password": "correct-horse-battery",
+          "document_type": "PASSPORT",
+          "document_number": "P1234567"
+        }
+      },
+      "KycVerdict": {
+        "type": "object",
+        "required": [
+          "kyc_record_id",
+          "customer_id",
+          "status",
+          "stub_reason",
+          "verified_at",
+          "customer_status"
+        ],
+        "properties": {
+          "kyc_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "KYC record identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Customer identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VERIFIED",
+              "REJECTED"
+            ],
+            "description": "Deterministic stub verdict.",
+            "example": "VERIFIED"
+          },
+          "stub_reason": {
+            "type": "string",
+            "description": "Populated on REJECTED only.",
+            "nullable": true,
+            "example": "RESERVED_TEST_DOCUMENT"
+          },
+          "verified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Set on VERIFIED only.",
+            "example": "2026-08-19T11:03:21.552Z",
+            "nullable": true
+          },
+          "customer_status": {
+            "type": "string",
+            "enum": [
+              "PENDING_KYC",
+              "ACTIVE",
+              "SUSPENDED"
+            ],
+            "description": "Customer status after the verdict was applied.",
+            "example": "ACTIVE"
+          }
+        },
+        "example": {
+          "kyc_record_id": "0d9c2f11-6a4b-4a8f-9f3e-2b1c7d5e8a04",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "status": "VERIFIED",
+          "stub_reason": null,
+          "verified_at": "2026-08-19T09:42:10.004Z",
+          "customer_status": "ACTIVE"
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ada.tester@horizon.test"
+          },
+          "password": {
+            "type": "string",
+            "description": "Plaintext in transit only; never logged.",
+            "minLength": 1,
+            "maxLength": 128,
+            "example": "correct-horse-battery"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "role"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "HS256 JWT carrying sub, role, iat and exp.",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YzllNjY3OSJ9.signature"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "bearer"
+            ],
+            "description": "Always 'bearer'.",
+            "example": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "settings.jwt_expiry_minutes * 60.",
+            "example": 1800
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "ADMIN"
+            ],
+            "description": "Role carried by the issued token.",
+            "example": "CUSTOMER"
+          }
+        }
+      },
+      "Principal": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "role",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Customer identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ada.tester@horizon.test"
+          },
+          "full_name": {
+            "type": "string",
+            "description": "Customer's full name.",
+            "example": "Ada Tester"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "ADMIN"
+            ],
+            "description": "Principal role.",
+            "example": "CUSTOMER"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_KYC",
+              "ACTIVE",
+              "SUSPENDED"
+            ],
+            "description": "Principal status.",
+            "example": "ACTIVE"
+          }
+        }
+      },
+      "OpenAccountRequest": {
+        "type": "object",
+        "description": "All fields optional. An empty object opens a SAVINGS account at 0.00.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "SAVINGS"
+            ],
+            "description": "Only savings accounts exist (AC-02, OUT-07).",
+            "example": "SAVINGS"
+          }
+        },
+        "example": {
+          "type": "SAVINGS"
+        }
+      },
+      "Account": {
+        "type": "object",
+        "required": [
+          "id",
+          "account_number",
+          "customer_id",
+          "type",
+          "balance",
+          "currency",
+          "status",
+          "opened_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Account identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "Human-quotable account number, unique.",
+            "pattern": "^HZN[0-9]{10}$",
+            "example": "HZN0000000241"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owning customer.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SAVINGS"
+            ],
+            "description": "Account product type.",
+            "example": "SAVINGS"
+          },
+          "balance": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^-?\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Current balance. Initialises to 0.00 on opening (AC-02); there is no minimum balance. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "0.00"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR"
+            ],
+            "description": "Single currency throughout (A-05).",
+            "example": "INR"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "CLOSED"
+            ],
+            "description": "Account status.",
+            "example": "ACTIVE"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Account opening timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          }
+        },
+        "example": {
+          "id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "account_number": "HZN0000000241",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "type": "SAVINGS",
+          "balance": "0.00",
+          "currency": "INR",
+          "status": "ACTIVE",
+          "opened_at": "2026-08-19T09:45:00.912Z"
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "required": [
+          "id",
+          "account_id",
+          "counterparty_account_id",
+          "direction",
+          "amount",
+          "balance_after",
+          "transfer_id",
+          "description",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transaction identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Account this row belongs to.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "counterparty_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Other side of the movement; null for a loan disbursement credit.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "DEBIT",
+              "CREDIT"
+            ],
+            "description": "Direction relative to account_id.",
+            "example": "DEBIT"
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Absolute movement amount. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "250.00"
+          },
+          "balance_after": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^-?\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Resulting balance of account_id after this row was applied. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "750.00"
+          },
+          "transfer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Shared by the DEBIT and CREDIT rows of one transfer; null for a disbursement.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Free-text description.",
+            "maxLength": 140,
+            "nullable": true,
+            "example": "Rent share"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Row timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          }
+        },
+        "example": {
+          "id": "e7c1d4a8-3b62-4f19-9c05-7d8e2a4b6f30",
+          "account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "counterparty_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+          "direction": "DEBIT",
+          "amount": "250.00",
+          "balance_after": "750.00",
+          "transfer_id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+          "description": "Rent share",
+          "created_at": "2026-08-19T11:03:21.552Z"
+        }
+      },
+      "PageOfTransaction": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "description": "Paginated envelope of Transaction, ordered most-recent-first (DD-11, A-06).",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "id": "e7c1d4a8-3b62-4f19-9c05-7d8e2a4b6f30",
+              "account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+              "counterparty_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+              "direction": "DEBIT",
+              "amount": "250.00",
+              "balance_after": "750.00",
+              "transfer_id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+              "description": "Rent share",
+              "created_at": "2026-08-19T11:03:21.552Z"
+            }
+          ],
+          "page": 1,
+          "page_size": 20,
+          "total": 1,
+          "total_pages": 1
+        }
+      },
+      "CreateBeneficiaryRequest": {
+        "type": "object",
+        "required": [
+          "nickname",
+          "beneficiary_name",
+          "beneficiary_account_number"
+        ],
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "description": "The customer's own label for this payee.",
+            "minLength": 1,
+            "maxLength": 60,
+            "example": "Flatmate"
+          },
+          "beneficiary_name": {
+            "type": "string",
+            "description": "Payee's name as the customer records it.",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Grace Sample"
+          },
+          "beneficiary_account_number": {
+            "type": "string",
+            "description": "Must resolve to an existing account.",
+            "pattern": "^HZN[0-9]{10}$",
+            "example": "HZN0000000318"
+          }
+        },
+        "example": {
+          "nickname": "Flatmate",
+          "beneficiary_name": "Grace Sample",
+          "beneficiary_account_number": "HZN0000000318"
+        }
+      },
+      "Beneficiary": {
+        "type": "object",
+        "description": "A saved payee. A convenience feature only: a beneficiary is never a precondition of a transfer (AC-06, DD-13).",
+        "required": [
+          "id",
+          "customer_id",
+          "nickname",
+          "beneficiary_name",
+          "beneficiary_account_number",
+          "created_at",
+          "deleted_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Beneficiary identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owning customer.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "Customer's label.",
+            "example": "Flatmate"
+          },
+          "beneficiary_name": {
+            "type": "string",
+            "description": "Payee name.",
+            "example": "Grace Sample"
+          },
+          "beneficiary_account_number": {
+            "type": "string",
+            "description": "Payee account number.",
+            "pattern": "^HZN[0-9]{10}$",
+            "example": "HZN0000000318"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Soft-delete timestamp; null while active (DD-19).",
+            "example": "2026-08-19T11:03:21.552Z",
+            "nullable": true
+          }
+        },
+        "example": {
+          "id": "5c6d7e8f-9a0b-41c2-83d4-5e6f7a8b9c0d",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "nickname": "Flatmate",
+          "beneficiary_name": "Grace Sample",
+          "beneficiary_account_number": "HZN0000000318",
+          "created_at": "2026-08-19T11:10:44.870Z",
+          "deleted_at": null
+        }
+      },
+      "CreateTransferRequest": {
+        "type": "object",
+        "description": "Destination is supplied as a plain account number. There is no beneficiary_id field: a saved beneficiary is not required, not referenced and not checked (DD-13, AC-04). There is no transfer cap, daily limit or velocity control (DD-14.1).",
+        "required": [
+          "source_account_id",
+          "destination_account_number",
+          "amount"
+        ],
+        "properties": {
+          "source_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Must be owned by the caller and ACTIVE.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "destination_account_number": {
+            "type": "string",
+            "description": "Any existing ACTIVE account. No beneficiary relationship is required.",
+            "pattern": "^HZN[0-9]{10}$",
+            "example": "HZN0000000318"
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Strictly positive, at most 2 decimal places. No upper bound. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "250.00"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional free text.",
+            "maxLength": 140,
+            "nullable": true,
+            "example": "Rent share"
+          }
+        },
+        "example": {
+          "source_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "destination_account_number": "HZN0000000318",
+          "amount": "250.00",
+          "description": "Rent share"
+        }
+      },
+      "Transfer": {
+        "type": "object",
+        "required": [
+          "id",
+          "source_account_id",
+          "destination_account_id",
+          "amount",
+          "status",
+          "failure_code",
+          "description",
+          "source_balance_after",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer identifier; also the transfer_id on both transaction rows.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "source_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Debited account.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "destination_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Credited account; null if the destination could not be resolved.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Amount moved. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "250.00"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "COMPLETED",
+              "FAILED"
+            ],
+            "description": "Outcome. A FAILED attempt moved no money (A-08).",
+            "example": "COMPLETED"
+          },
+          "failure_code": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "VALIDATION_ERROR",
+              "MONEY_PRECISION",
+              "UNAUTHENTICATED",
+              "INVALID_CREDENTIALS",
+              "TOKEN_EXPIRED",
+              "PENDING_KYC",
+              "FORBIDDEN_ROLE",
+              "OWNERSHIP_VIOLATION",
+              "ACCOUNT_NOT_FOUND",
+              "BENEFICIARY_NOT_FOUND",
+              "LOAN_NOT_FOUND",
+              "EMAIL_ALREADY_REGISTERED",
+              "KYC_ALREADY_SUBMITTED",
+              "DUPLICATE_BENEFICIARY",
+              "ILLEGAL_LOAN_TRANSITION",
+              "DISBURSEMENT_ACCOUNT_INACTIVE",
+              "SELF_TRANSFER",
+              "INACTIVE_DESTINATION_ACCOUNT",
+              "INSUFFICIENT_FUNDS",
+              "DECISION_REASON_REQUIRED",
+              "METHOD_NOT_ALLOWED",
+              "UNSUPPORTED_MEDIA_TYPE",
+              "INTERNAL_ERROR",
+              null
+            ],
+            "description": "Populated on FAILED only; matches the error.code returned to the caller.",
+            "example": null
+          },
+          "description": {
+            "type": "string",
+            "description": "Free text supplied by the caller.",
+            "maxLength": 140,
+            "nullable": true,
+            "example": "Rent share"
+          },
+          "source_balance_after": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^-?\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Source balance after a COMPLETED transfer; null on FAILED. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "750.00",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Attempt timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          }
+        },
+        "example": {
+          "id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+          "source_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "destination_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+          "amount": "250.00",
+          "status": "COMPLETED",
+          "failure_code": null,
+          "description": "Rent share",
+          "source_balance_after": "750.00",
+          "created_at": "2026-08-19T11:03:21.552Z"
+        }
+      },
+      "PageOfTransfer": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "description": "Paginated envelope of Transfer, ordered most-recent-first (DD-11, A-06).",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transfer"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "id": "9f8e7d6c-5b4a-4392-8170-1a2b3c4d5e6f",
+              "source_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+              "destination_account_id": "d5b3c1f4-0e69-4a8c-9f35-7b4e9a2c3d60",
+              "amount": "250.00",
+              "status": "COMPLETED",
+              "failure_code": null,
+              "description": "Rent share",
+              "source_balance_after": "750.00",
+              "created_at": "2026-08-19T11:03:21.552Z"
+            }
+          ],
+          "page": 1,
+          "page_size": 20,
+          "total": 1,
+          "total_pages": 1
+        }
+      },
+      "CreateLoanRequest": {
+        "type": "object",
+        "description": "Structural validation only. There is no eligibility computation: no principal bound, no tenure bound, no income requirement, no instalment-to-income ratio, no credit score and no risk band (DD-14.4). Approval is an administrator decision (AC-08).",
+        "required": [
+          "principal",
+          "tenure_months",
+          "purpose"
+        ],
+        "properties": {
+          "principal": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Strictly positive, at most 2 decimal places. No minimum and no maximum. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "5000.00"
+          },
+          "tenure_months": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A positive whole number of months. No maximum.",
+            "example": 24
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Free text. Read by no rule.",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Home improvement"
+          },
+          "declared_monthly_income": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Optional and informational. No rule consumes this value. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "3200.00",
+            "nullable": true
+          },
+          "disbursement_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "An ACTIVE SAVINGS account owned by the applicant.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          }
+        },
+        "example": {
+          "principal": "5000.00",
+          "tenure_months": 24,
+          "purpose": "Home improvement",
+          "declared_monthly_income": "3200.00",
+          "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48"
+        }
+      },
+      "LoanApplication": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "principal",
+          "tenure_months",
+          "purpose",
+          "declared_monthly_income",
+          "status",
+          "disbursement_account_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Loan application identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Applicant.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "principal": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Requested principal. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "5000.00"
+          },
+          "tenure_months": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 24
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Free text.",
+            "example": "Home improvement"
+          },
+          "declared_monthly_income": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Optional and informational; no rule reads it. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "3200.00",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "UNDER_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "DISBURSED"
+            ],
+            "description": "Current state.",
+            "example": "APPLIED"
+          },
+          "disbursement_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Target account for disbursement.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Application timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last state-change timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          }
+        },
+        "example": {
+          "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "principal": "5000.00",
+          "tenure_months": 24,
+          "purpose": "Home improvement",
+          "declared_monthly_income": "3200.00",
+          "status": "APPLIED",
+          "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "created_at": "2026-08-19T11:20:00.000Z",
+          "updated_at": "2026-08-19T11:20:00.000Z"
+        }
+      },
+      "LoanStateTransition": {
+        "type": "object",
+        "required": [
+          "id",
+          "loan_id",
+          "from_status",
+          "to_status",
+          "actor_id",
+          "reason",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transition identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "loan_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Loan this transition belongs to.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "from_status": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "UNDER_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "DISBURSED"
+            ],
+            "description": "Null for the initial APPLIED row.",
+            "example": "APPLIED",
+            "nullable": true
+          },
+          "to_status": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "UNDER_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "DISBURSED"
+            ],
+            "description": "Resulting state.",
+            "example": "APPLIED"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Customer for APPLIED; administrator for every later transition.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Mandatory and non-empty on APPROVED and REJECTED (AC-08); optional otherwise.",
+            "maxLength": 500,
+            "nullable": true,
+            "example": "Documents complete; approved by operations."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Transition timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          }
+        },
+        "example": {
+          "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+          "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "from_status": "UNDER_REVIEW",
+          "to_status": "APPROVED",
+          "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+          "reason": "Documents complete; approved by operations.",
+          "created_at": "2026-08-19T11:41:55.180Z"
+        }
+      },
+      "LoanDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "principal",
+          "tenure_months",
+          "purpose",
+          "declared_monthly_income",
+          "status",
+          "disbursement_account_id",
+          "created_at",
+          "updated_at",
+          "timeline"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Loan application identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Applicant.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "principal": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Requested principal. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "5000.00"
+          },
+          "tenure_months": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 24
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Free text.",
+            "example": "Home improvement"
+          },
+          "declared_monthly_income": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Optional and informational; no rule reads it. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "3200.00",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "UNDER_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "DISBURSED"
+            ],
+            "description": "Current state.",
+            "example": "APPLIED"
+          },
+          "disbursement_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Target account for disbursement.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Application timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last state-change timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "timeline": {
+            "type": "array",
+            "description": "Full status history, ordered oldest-first.",
+            "items": {
+              "$ref": "#/components/schemas/LoanStateTransition"
+            }
+          }
+        },
+        "example": {
+          "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "principal": "5000.00",
+          "tenure_months": 24,
+          "purpose": "Home improvement",
+          "declared_monthly_income": "3200.00",
+          "status": "APPROVED",
+          "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "created_at": "2026-08-19T11:20:00.000Z",
+          "updated_at": "2026-08-19T11:41:55.180Z",
+          "timeline": [
+            {
+              "id": "aa11bb22-cc33-4d44-8e55-ff66aa77bb88",
+              "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+              "from_status": null,
+              "to_status": "APPLIED",
+              "actor_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+              "reason": null,
+              "created_at": "2026-08-19T11:20:00.000Z"
+            },
+            {
+              "id": "bb22cc33-dd44-4e55-9f66-aa77bb88cc99",
+              "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+              "from_status": "APPLIED",
+              "to_status": "UNDER_REVIEW",
+              "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+              "reason": null,
+              "created_at": "2026-08-19T11:33:12.400Z"
+            },
+            {
+              "id": "cc33dd44-ee55-4f66-a077-bb88cc99dd00",
+              "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+              "from_status": "UNDER_REVIEW",
+              "to_status": "APPROVED",
+              "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+              "reason": "Documents complete; approved by operations.",
+              "created_at": "2026-08-19T11:41:55.180Z"
+            }
+          ]
+        }
+      },
+      "AdminLoanSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "principal",
+          "tenure_months",
+          "purpose",
+          "declared_monthly_income",
+          "status",
+          "disbursement_account_id",
+          "created_at",
+          "updated_at",
+          "applicant_name",
+          "applicant_email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Loan application identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Applicant.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "principal": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Requested principal. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "5000.00"
+          },
+          "tenure_months": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 24
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Free text.",
+            "example": "Home improvement"
+          },
+          "declared_monthly_income": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^\\d{1,16}(\\.\\d{1,2})?$",
+            "description": "Optional and informational; no rule reads it. Decimal string on the wire, never a JSON number (NFR-01, DD-05, DD-16).",
+            "example": "3200.00",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "UNDER_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "DISBURSED"
+            ],
+            "description": "Current state.",
+            "example": "APPLIED"
+          },
+          "disbursement_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Target account for disbursement.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Application timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last state-change timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "applicant_name": {
+            "type": "string",
+            "description": "Applicant's full name, denormalised for the queue.",
+            "example": "Ada Tester"
+          },
+          "applicant_email": {
+            "type": "string",
+            "format": "email",
+            "example": "ada.tester@horizon.test"
+          }
+        },
+        "example": {
+          "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "principal": "5000.00",
+          "tenure_months": 24,
+          "purpose": "Home improvement",
+          "declared_monthly_income": "3200.00",
+          "status": "APPLIED",
+          "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "created_at": "2026-08-19T11:20:00.000Z",
+          "updated_at": "2026-08-19T11:20:00.000Z",
+          "applicant_name": "Ada Tester",
+          "applicant_email": "ada.tester@horizon.test"
+        }
+      },
+      "PageOfAdminLoan": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "description": "Paginated envelope of AdminLoanSummary, ordered most-recent-first (DD-11, A-06).",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminLoanSummary"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+              "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+              "principal": "5000.00",
+              "tenure_months": 24,
+              "purpose": "Home improvement",
+              "declared_monthly_income": "3200.00",
+              "status": "APPLIED",
+              "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+              "created_at": "2026-08-19T11:20:00.000Z",
+              "updated_at": "2026-08-19T11:20:00.000Z",
+              "applicant_name": "Ada Tester",
+              "applicant_email": "ada.tester@horizon.test"
+            }
+          ],
+          "page": 1,
+          "page_size": 20,
+          "total": 1,
+          "total_pages": 1
+        }
+      },
+      "ReviewRequest": {
+        "type": "object",
+        "description": "A reason is optional here; it is mandatory only on approve and reject (AC-08).",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "Recorded as the transition reason.",
+            "maxLength": 500,
+            "nullable": true,
+            "example": "Queued for operations review."
+          }
+        },
+        "example": {
+          "note": "Queued for operations review."
+        }
+      },
+      "DecisionRequest": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "description": "A non-empty reason is mandatory. An administrator cannot approve or reject silently (AC-08, E-13).",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "1-500 characters after trimming. Empty or whitespace-only is a 422.",
+            "minLength": 1,
+            "maxLength": 500,
+            "example": "Documents complete; approved by operations."
+          }
+        },
+        "example": {
+          "reason": "Documents complete; approved by operations."
+        }
+      },
+      "DisburseRequest": {
+        "type": "object",
+        "properties": {
+          "disbursement_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Overrides the account on the application. Must be an ACTIVE SAVINGS account owned by the applicant.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "description": "Recorded as the transition reason.",
+            "maxLength": 500,
+            "nullable": true,
+            "example": "Disbursed to the applicant's savings account."
+          }
+        },
+        "example": {
+          "disbursement_account_id": "b3f1a9d2-8c47-4e6a-9d13-5f2c7e0a1b48",
+          "note": "Disbursed to the applicant's savings account."
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "description": "Append-only ledger row (NFR-02). No update or delete path exists at any layer.",
+        "required": [
+          "id",
+          "occurred_at",
+          "actor_id",
+          "actor_role",
+          "action",
+          "entity_type",
+          "entity_id",
+          "correlation_id",
+          "metadata"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Audit entry identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server-assigned timestamp.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Acting principal; null for a system-originated entry.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "nullable": true
+          },
+          "actor_role": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "ADMIN",
+              "SYSTEM"
+            ],
+            "description": "Role of the actor.",
+            "example": "CUSTOMER"
+          },
+          "action": {
+            "type": "string",
+            "description": "Action identifier, e.g. TRANSFER_COMPLETED.",
+            "example": "LOAN_APPROVED"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "Entity class the action targeted.",
+            "example": "LoanApplication"
+          },
+          "entity_id": {
+            "type": "string",
+            "description": "Identifier of the targeted entity.",
+            "example": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b"
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "Join key back into the log stream (DD-18).",
+            "example": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Opaque caller-supplied context. Never used as a WHERE predicate (DD-15).",
+            "example": {
+              "from_status": "UNDER_REVIEW",
+              "to_status": "APPROVED"
+            }
+          }
+        },
+        "example": {
+          "id": "f0e1d2c3-b4a5-4967-8879-0a1b2c3d4e5f",
+          "occurred_at": "2026-08-19T11:41:55.180Z",
+          "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+          "actor_role": "ADMIN",
+          "action": "LOAN_APPROVED",
+          "entity_type": "LoanApplication",
+          "entity_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+          "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31",
+          "metadata": {
+            "from_status": "UNDER_REVIEW",
+            "to_status": "APPROVED"
+          }
+        }
+      },
+      "PageOfAuditEntry": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "description": "Paginated envelope of AuditEntry, ordered most-recent-first (DD-11, A-06).",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "id": "f0e1d2c3-b4a5-4967-8879-0a1b2c3d4e5f",
+              "occurred_at": "2026-08-19T11:41:55.180Z",
+              "actor_id": "0a0b0c0d-0e0f-4011-8213-141516171819",
+              "actor_role": "ADMIN",
+              "action": "LOAN_APPROVED",
+              "entity_type": "LoanApplication",
+              "entity_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+              "correlation_id": "6b1f2f2e-4c0e-4b1a-9a4d-2f6a1c8e0b31",
+              "metadata": {
+                "from_status": "UNDER_REVIEW",
+                "to_status": "APPROVED"
+              }
+            }
+          ],
+          "page": 1,
+          "page_size": 20,
+          "total": 1,
+          "total_pages": 1
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "channel",
+          "event_type",
+          "payload",
+          "status",
+          "created_at",
+          "sent_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Notification identifier.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Recipient customer.",
+            "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "SMS"
+            ],
+            "description": "Stub channel; one dispatcher serves both (A-09).",
+            "example": "EMAIL"
+          },
+          "event_type": {
+            "type": "string",
+            "description": "Business event that produced this notification.",
+            "example": "LOAN_APPROVED"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Rendered notification content.",
+            "example": {
+              "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+              "principal": "5000.00"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "SENT",
+              "FAILED"
+            ],
+            "description": "Dispatch state.",
+            "example": "SENT"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Enqueue timestamp; written inside the business transaction.",
+            "example": "2026-08-19T11:03:21.552Z"
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Dispatch timestamp; null while QUEUED or FAILED.",
+            "example": "2026-08-19T11:03:21.552Z",
+            "nullable": true
+          }
+        },
+        "example": {
+          "id": "9a8b7c6d-5e4f-4031-8221-314151617181",
+          "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          "channel": "EMAIL",
+          "event_type": "LOAN_APPROVED",
+          "payload": {
+            "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+            "principal": "5000.00"
+          },
+          "status": "SENT",
+          "created_at": "2026-08-19T11:41:55.180Z",
+          "sent_at": "2026-08-19T11:41:55.204Z"
+        }
+      },
+      "PageOfNotification": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "description": "Paginated envelope of Notification, ordered most-recent-first (DD-11, A-06).",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "id": "9a8b7c6d-5e4f-4031-8221-314151617181",
+              "customer_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+              "channel": "EMAIL",
+              "event_type": "LOAN_APPROVED",
+              "payload": {
+                "loan_id": "3d4e5f60-7182-4939-a4b5-c6d7e8f90a1b",
+                "principal": "5000.00"
+              },
+              "status": "SENT",
+              "created_at": "2026-08-19T11:41:55.180Z",
+              "sent_at": "2026-08-19T11:41:55.204Z"
+            }
+          ],
+          "page": 1,
+          "page_size": 20,
+          "total": 1,
+          "total_pages": 1
+        }
+      }
+    }
+  }
+}

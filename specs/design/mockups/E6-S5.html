@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon Bank — E6-S5 Loans &amp; Status Timeline</title>
+<!--
+  E6-S5 — AC-07 (apply, track full state history) and the customer view of AC-08.
+  Contract source: api-contracts.md §6.
+  Request: { principal, tenure_months, purpose, declared_monthly_income }.
+  Response: { id, customer_id, customer_name, principal, tenure_months, declared_monthly_income, purpose,
+              status, disbursement_account_id, created_at, updated_at, timeline[] }.
+  Timeline entry: { id, from_status, to_status, actor_id, actor_role, reason, created_at }.
+
+  DD-14 #4 — NO LOAN ELIGIBILITY RULE EXISTS ANYWHERE ON THIS SCREEN.
+  No principal minimum or maximum, no tenure bounds, no income requirement, no affordability or
+  instalment-to-income calculation, no credit score, no risk band, no eligibility indicator, no
+  "you may qualify for" messaging. `declared_monthly_income` is OPTIONAL and INFORMATIONAL: it is
+  recorded for the reviewer to read and no rule, threshold or ratio consumes it.
+  Validation is structural only: principal > 0 with at most 2 decimal places, tenure a positive whole
+  number of months. Approval is an administrator's judgement (AC-08).
+  Synthetic data only.
+-->
+<style>
+/* ==== HORIZON BANK TOKENS v1.0 — IDENTICAL BLOCK IN EVERY MOCKUP — DO NOT EDIT IN ISOLATION ==== */
+:root{
+--ink-900:#0B1524;--ink-800:#13233A;--ink-700:#1E3352;--ink-600:#33496B;--ink-500:#51657F;
+--ink-400:#74869B;--ink-200:#D4DCE5;--ink-100:#E9EEF3;
+--paper:#F7F5F1;--panel:#FBFAF8;--surface:#FFFFFF;
+--accent-700:#8A3A14;--accent-600:#A8481B;--accent-200:#E9A178;--accent-050:#F6E9E1;--accent-line:#E3C7B6;
+--ok-700:#1B6046;--ok-050:#E4F0EA;--ok-line:#BFD9CC;
+--warn-700:#7A5107;--warn-050:#F8EEDA;--warn-line:#E4D2A6;
+--danger-700:#A01B22;--danger-050:#FBE7E7;--danger-line:#EEC4C4;
+--info-700:#1D4F7A;--info-050:#E4EDF5;--info-line:#C3D6E8;
+--focus:#0B57D0;--focus-dark:#8FBBFF;
+--f-display:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+--f-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--f-money:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+--t-12:.75rem;--t-13:.8125rem;--t-14:.875rem;--t-16:1rem;--t-18:1.125rem;--t-22:1.375rem;
+--t-28:1.75rem;--t-36:2.25rem;--t-48:3rem;--t-60:3.75rem;
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;
+--r-1:2px;--r-2:4px;--r-pill:999px;
+--e-1:0 1px 0 rgba(11,21,36,.05);--e-2:0 10px 28px -18px rgba(11,21,36,.45);
+--m-fast:120ms;--m-base:200ms;--m-ease:cubic-bezier(.2,.6,.2,1);--maxw:1180px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-900);font:400 var(--t-16)/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;line-height:1.15;letter-spacing:-.015em;margin:0}
+h1{font-size:var(--t-36)}h2{font-size:var(--t-28)}h3{font-size:var(--t-22)}h4{font-size:var(--t-18)}
+@media(min-width:768px){h1{font-size:var(--t-48)}}
+p{margin:0 0 var(--s-3)}
+a{color:var(--accent-700);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+.on-dark :focus-visible{outline-color:var(--focus-dark)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s-4)}
+@media(min-width:768px){.wrap{padding:0 var(--s-5)}}
+.hb-top{background:var(--ink-900);border-bottom:3px solid var(--accent-600)}
+.hb-top .wrap{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding-top:var(--s-3);padding-bottom:var(--s-3)}
+.mark{display:flex;align-items:baseline;gap:var(--s-2);font-family:var(--f-display);font-size:var(--t-18);letter-spacing:.16em;text-transform:uppercase;color:var(--paper);text-decoration:none}
+.mark em{font-style:normal;font-size:var(--t-12);letter-spacing:.24em;color:var(--accent-200)}
+.who{font-size:var(--t-13);color:var(--ink-200);display:flex;gap:var(--s-3);align-items:center}
+.hb-nav{background:var(--ink-800)}
+.hb-nav ul{display:flex;gap:2px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.hb-nav a{display:block;padding:11px var(--s-3);color:var(--ink-200);white-space:nowrap;text-decoration:none;font-size:var(--t-13);letter-spacing:.04em}
+.hb-nav a:hover{color:var(--surface);background:var(--ink-700)}
+.hb-nav a[aria-current="page"]{color:var(--ink-900);background:var(--accent-200);font-weight:700}
+main{padding:var(--s-6) 0 var(--s-9);display:block}
+.sec{margin:0 0 var(--s-8)}
+.eyebrow{display:flex;align-items:center;gap:var(--s-3);font:700 var(--t-12)/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-700);margin:0 0 var(--s-3)}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--ink-200)}
+.lede{color:var(--ink-600);max-width:70ch;font-size:var(--t-18)}
+.card{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);padding:var(--s-5);box-shadow:var(--e-1)}
+.card--accent{border-top:3px solid var(--accent-600)}
+.grid{display:grid;gap:var(--s-4)}
+.g2,.g3{grid-template-columns:1fr}
+@media(min-width:768px){.g2,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.g3{grid-template-columns:repeat(3,1fr)}}
+.money{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.02em;color:var(--ink-900);white-space:nowrap}
+.money .cur{color:var(--ink-500);font-size:.62em;margin-right:.18em;vertical-align:.12em}
+.money--xl{font-size:var(--t-36);font-weight:700;line-height:1.05;display:block}
+@media(min-width:768px){.money--xl{font-size:var(--t-60)}}
+.money--lg{font-size:var(--t-28);font-weight:700}
+.money--md{font-size:var(--t-18);font-weight:700}
+.money--sm{font-size:var(--t-14)}
+.money--credit{color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:44px;padding:0 var(--s-5);border:1px solid var(--ink-400);border-radius:var(--r-2);background:var(--surface);color:var(--ink-800);font:700 var(--t-14)/1 var(--f-body);letter-spacing:.03em;cursor:pointer;text-decoration:none;transition:background var(--m-fast) var(--m-ease),border-color var(--m-fast) var(--m-ease)}
+.btn:hover{background:var(--ink-100)}
+.btn--primary{background:var(--accent-600);border-color:var(--accent-700);color:var(--surface)}
+.btn--primary:hover{background:var(--accent-700)}
+.btn--dark{background:var(--ink-900);border-color:var(--ink-900);color:var(--paper)}
+.btn--dark:hover{background:var(--ink-700)}
+.btn--danger{border-color:var(--danger-700);color:var(--danger-700)}
+.btn--danger:hover{background:var(--danger-050)}
+.btn--ghost{border-color:transparent;background:transparent;color:var(--accent-700);text-decoration:underline}
+.btn--sm{min-height:38px;padding:0 var(--s-3);font-size:var(--t-13)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--ink-100);color:var(--ink-500);border-color:var(--ink-200);cursor:not-allowed}
+.field{margin:0 0 var(--s-4)}
+.field>label{display:block;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-700);margin:0 0 var(--s-2)}
+.field>label .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-500);font-size:var(--t-13)}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px var(--s-3);font:400 var(--t-16)/1.4 var(--f-body);color:var(--ink-900);background:var(--surface);border:1px solid var(--ink-400);border-radius:var(--r-2)}
+textarea{min-height:88px;resize:vertical}
+.mono{font-family:var(--f-money);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+::placeholder{color:var(--ink-500);opacity:1}
+[aria-invalid="true"]{border-color:var(--danger-700);border-width:2px;background:var(--danger-050)}
+.hint{font-size:var(--t-13);color:var(--ink-500);margin:var(--s-2) 0 0}
+.err{display:flex;gap:6px;font:700 var(--t-13)/1.5 var(--f-body);color:var(--danger-700);margin:var(--s-2) 0 0}
+.err::before{content:"\25B2";font-size:.78em;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid;font:700 var(--t-12)/1.5 var(--f-body);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-neutral{color:var(--ink-700);background:var(--ink-100);border-color:var(--ink-200)}
+.b-info{color:var(--info-700);background:var(--info-050);border-color:var(--info-line)}
+.b-ok{color:var(--ok-700);background:var(--ok-050);border-color:var(--ok-line)}
+.b-warn{color:var(--warn-700);background:var(--warn-050);border-color:var(--warn-line)}
+.b-danger{color:var(--danger-700);background:var(--danger-050);border-color:var(--danger-line)}
+.b-accent{color:var(--accent-700);background:var(--accent-050);border-color:var(--accent-line)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--ink-200);border-radius:var(--r-2);overflow:hidden}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--t-14)}
+.tbl caption{text-align:left;padding:var(--s-4);font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);border-bottom:1px solid var(--ink-200)}
+.tbl th{text-align:left;font:700 var(--t-12)/1.4 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600);padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-400);background:var(--panel)}
+.tbl td{padding:var(--s-3) var(--s-4);border-bottom:1px solid var(--ink-200);vertical-align:top;color:var(--ink-800)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+@media(max-width:767px){
+.tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+.tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tbl tr{border-bottom:2px solid var(--ink-400);padding:var(--s-3) 0}
+.tbl tr:last-child{border-bottom:0}
+.tbl td{display:grid;grid-template-columns:minmax(10ch,38%) 1fr;gap:var(--s-3);border-bottom:0;padding:5px var(--s-4)}
+.tbl td::before{content:attr(data-label);font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600)}
+.tbl .num{text-align:left}
+}
+.alert{display:block;padding:var(--s-4);border:1px solid;border-left-width:5px;border-radius:var(--r-2);margin:0 0 var(--s-4)}
+.alert h3{font-family:var(--f-body);font-size:var(--t-16);font-weight:700;letter-spacing:0;margin:0 0 4px}
+.alert p{margin:0;font-size:var(--t-14);color:var(--ink-900)}
+.a-ok{background:var(--ok-050);border-color:var(--ok-700)}.a-ok h3{color:var(--ok-700)}
+.a-danger{background:var(--danger-050);border-color:var(--danger-700)}.a-danger h3{color:var(--danger-700)}
+.a-warn{background:var(--warn-050);border-color:var(--warn-700)}.a-warn h3{color:var(--warn-700)}
+.a-info{background:var(--info-050);border-color:var(--info-700)}.a-info h3{color:var(--info-700)}
+.empty{text-align:center;padding:var(--s-7) var(--s-4);border:1px dashed var(--ink-400);border-radius:var(--r-2);background:var(--panel)}
+.empty p{color:var(--ink-600);max-width:48ch;margin:var(--s-2) auto var(--s-4)}
+.skel{background:linear-gradient(90deg,var(--ink-100),#F2F5F8,var(--ink-100));background-size:200% 100%;animation:sk 1.4s var(--m-ease) infinite;border-radius:var(--r-1);height:14px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pager{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center;justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--ink-200);background:var(--panel)}
+.pager p{margin:0;font-size:var(--t-13);color:var(--ink-600)}
+code.api{display:inline-block;font-family:var(--f-money);font-size:var(--t-12);color:var(--accent-700);background:var(--accent-050);border:1px solid var(--accent-line);border-radius:var(--r-1);padding:2px 6px;white-space:nowrap}
+.api-row{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-top:var(--s-2)}
+.switch{display:inline-flex;flex-wrap:wrap;gap:var(--s-1);background:var(--ink-100);border:1px solid var(--ink-200);border-radius:var(--r-pill);padding:4px;margin:0 0 var(--s-4)}
+.switch button{min-height:38px;padding:0 var(--s-4);border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink-700);font:700 var(--t-13)/1 var(--f-body);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--ink-900);color:var(--paper)}
+.hb-foot{background:var(--ink-900);color:var(--ink-200);padding:var(--s-6) 0;margin-top:var(--s-8);border-top:3px solid var(--accent-600);font-size:var(--t-13)}
+.hb-foot a{color:var(--accent-200)}
+.stack>*+*{margin-top:var(--s-4)}
+.row{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--ink-600)}
+.small{font-size:var(--t-13)}
+.hidden{display:none!important}
+.ts{font-family:var(--f-money);font-variant-numeric:tabular-nums;font-size:var(--t-13);color:var(--ink-600);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+/* ==== END SHARED TOKEN BLOCK ==== */
+
+/* page-specific: loans */
+.loans{display:grid;gap:var(--s-4);grid-template-columns:1fr}
+@media(min-width:980px){.loans{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start}}
+.loan{width:100%;text-align:left;background:var(--surface);border:1px solid var(--ink-200);border-left:4px solid var(--ink-900);
+ border-radius:var(--r-2);padding:var(--s-4) var(--s-5);cursor:pointer;font-family:var(--f-body);display:block}
+.loan:hover{border-left-color:var(--accent-600);background:var(--panel)}
+.loan[aria-pressed="true"]{border-left-color:var(--accent-600);box-shadow:var(--e-2);background:var(--surface)}
+.loan-head{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:baseline;justify-content:space-between}
+.tl{list-style:none;margin:var(--s-4) 0 0;padding:0 0 0 28px;position:relative}
+.tl::before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--ink-200)}
+.tl li{position:relative;padding-bottom:var(--s-5)}
+.tl li:last-child{padding-bottom:0}
+.tl-dot{position:absolute;left:-28px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--ink-600);
+ border:3px solid var(--surface);box-shadow:0 0 0 1px var(--ink-400)}
+.tl-dot.d-ok{background:var(--ok-700)}.tl-dot.d-warn{background:var(--warn-700)}
+.tl-dot.d-danger{background:var(--danger-700)}.tl-dot.d-info{background:var(--info-700)}
+.tl-reason{margin:var(--s-2) 0 0;padding:var(--s-3);background:var(--panel);border-left:3px solid var(--ink-200);
+ font-size:var(--t-14);color:var(--ink-800)}
+.kv{display:grid;grid-template-columns:minmax(8rem,40%) 1fr;gap:var(--s-2) var(--s-3);margin:0}
+.kv dt{font:700 var(--t-12)/1.7 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-600)}
+.kv dd{margin:0}
+</style>
+</head>
+<body>
+
+<header class="hb-top on-dark" data-testid="app-header">
+  <div class="wrap">
+    <a class="mark" href="E6-S1.html"><b>Horizon</b><em>Bank</em></a>
+    <p class="who" style="margin:0">Amara Okonjo <span class="badge b-ok">ACTIVE</span></p>
+  </div>
+</header>
+
+<nav class="hb-nav on-dark" aria-label="Mockup index" data-testid="app-nav">
+  <div class="wrap">
+    <ul>
+      <li><a href="E6-S1.html">E6-S1 Design system</a></li>
+      <li><a href="E6-S2.html">E6-S2 Onboarding</a></li>
+      <li><a href="E6-S3.html">E6-S3 Accounts</a></li>
+      <li><a href="E6-S4.html">E6-S4 Transfer</a></li>
+      <li><a href="E6-S5.html" aria-current="page">E6-S5 Loans</a></li>
+      <li><a href="E7-S1.html">E7-S1 Loan queue</a></li>
+      <li><a href="E7-S2.html">E7-S2 Audit &amp; notifications</a></li>
+      <li><a href="E7-S3.html">E7-S3 Conformance</a></li>
+      <li><a href="E9-S1.html">E9-S1 Verification map</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap" id="main" data-testid="app-main">
+  <p class="eyebrow">E6-S5 &middot; AC-07</p>
+  <h1>Personal loans</h1>
+  <p class="lede">Apply in one form, then follow the application through every state change &mdash; who moved it, when,
+    and why. Horizon does not pre-assess applications: every decision on this page was made by a person and is
+    recorded with their reason.</p>
+
+  <div class="switch" role="group" aria-label="Loan list state" data-testid="loan-state-switcher"
+       style="margin-top:var(--s-5)">
+    <button type="button" aria-pressed="true" data-loans="populated">Applications on file</button>
+    <button type="button" aria-pressed="false" data-loans="empty">No applications</button>
+  </div>
+
+  <div id="loans-empty" class="hidden">
+    <div class="empty" data-testid="loans-empty-state">
+      <h3>You have not applied for a loan</h3>
+      <p>Tell us how much you would like to borrow and over how many months. An administrator reviews every
+        application individually and records their reason either way.</p>
+      <button type="button" class="btn btn--primary" data-testid="loans-empty-apply-button">Start an application</button>
+      <div class="api-row" style="justify-content:center"><code class="api">GET /api/v1/loans &rarr; 200 { items: [] }</code></div>
+    </div>
+  </div>
+
+  <div id="loans-populated" class="loans" style="margin-top:var(--s-5)">
+    <!-- ------------------------- application form ------------------------- -->
+    <section class="card card--accent" aria-labelledby="h-apply">
+      <h2 id="h-apply">Apply for a loan</h2>
+      <p class="small muted">Four fields. Three of them are required and one is optional.</p>
+
+      <form id="loan-application-form" data-testid="loan-application-form" novalidate style="margin-top:var(--s-4)">
+        <div class="field">
+          <label for="loan-principal">Amount you want to borrow</label>
+          <input type="text" id="loan-principal" name="principal" data-testid="loan-principal" class="mono"
+                 inputmode="decimal" value="250000.00" aria-describedby="principal-hint">
+          <p class="hint" id="principal-hint">Greater than zero, at most two decimal places. Sent as a decimal string.</p>
+          <p class="err hidden" id="principal-err" data-testid="loan-error-principal"></p>
+        </div>
+
+        <div class="field">
+          <label for="loan-tenure-months">Repayment period, in months</label>
+          <input type="text" id="loan-tenure-months" name="tenure_months" data-testid="loan-tenure-months" class="mono"
+                 inputmode="numeric" value="36" aria-describedby="tenure-hint">
+          <p class="hint" id="tenure-hint">A whole number of months, greater than zero.</p>
+          <p class="err hidden" id="tenure-err" data-testid="loan-error-tenure"></p>
+        </div>
+
+        <div class="field">
+          <label for="loan-purpose">What is it for?</label>
+          <textarea id="loan-purpose" name="purpose" data-testid="loan-purpose" maxlength="200"
+                    aria-describedby="purpose-hint">Home renovation — kitchen and roof repair</textarea>
+          <p class="hint" id="purpose-hint">Free text, up to 200 characters. Not checked against a list.</p>
+          <p class="err hidden" id="purpose-err" data-testid="loan-error-purpose"></p>
+        </div>
+
+        <div class="field">
+          <label for="loan-declared-monthly-income">
+            Monthly income <span class="opt">(optional)</span></label>
+          <input type="text" id="loan-declared-monthly-income" name="declared_monthly_income"
+                 data-testid="loan-declared-monthly-income" class="mono" inputmode="decimal" value="85000.00"
+                 aria-describedby="income-hint">
+          <p class="hint" id="income-hint">Recorded on your application for the reviewer to read. Nothing is
+            calculated from it, and leaving it blank does not change how your application is handled.</p>
+        </div>
+
+        <button type="submit" class="btn btn--primary" data-testid="loan-submit" style="width:100%">
+          Submit application</button>
+        <div class="api-row"><code class="api">POST /api/v1/loans</code><code class="api">201 &rarr; status APPLIED</code>
+          <code class="api">422 VALIDATION_ERROR (structural only)</code></div>
+      </form>
+
+      <div class="alert a-info" role="note" style="margin-top:var(--s-5)">
+        <h3>No automatic decision is made here</h3>
+        <p>Submitting this form records an application in status <span class="badge b-info">APPLIED</span>. It does not
+          score, rank or pre-approve you, and this screen will never tell you whether you are likely to be accepted.
+          An administrator reads the application and records a decision with a written reason.</p>
+      </div>
+
+      <div id="loan-form-live" role="status" aria-live="polite" style="margin-top:var(--s-4)"></div>
+    </section>
+
+    <!-- ------------------------- list + timeline ------------------------- -->
+    <section aria-labelledby="h-list">
+      <h2 id="h-list">Your applications</h2>
+      <p class="small muted">Select an application to see its full history.</p>
+      <div class="api-row" style="margin-bottom:var(--s-4)"><code class="api">GET /api/v1/loans?page=1&amp;size=20</code>
+        <code class="api">GET /api/v1/loans/{loan_id}</code></div>
+
+      <ul id="loan-list" data-testid="loan-list" class="stack" style="list-style:none;padding:0;margin:0"></ul>
+
+      <div id="loan-detail" style="margin-top:var(--s-5)"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="hb-foot on-dark" data-testid="app-footer">
+  <div class="wrap">
+    <p style="margin:0"><strong>Horizon Bank</strong> &middot; E6-S5 loans mockup &middot; synthetic data only.</p>
+    <p style="margin:var(--s-2) 0 0">Tokens from <a href="E6-S1.html">E6-S1</a>. Next: <a href="E7-S1.html">E7-S1 admin loan queue</a>.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  function formatMoney(value) {
+    var s = String(value), neg = s.charAt(0) === '-';
+    if (neg) { s = s.slice(1); }
+    var parts = s.split('.'), whole = parts[0] || '0', frac = ((parts[1] || '') + '00').slice(0, 2);
+    var out = '', c = 0;
+    for (var k = whole.length - 1; k >= 0; k--) {
+      out = whole.charAt(k) + out; c++;
+      if (c % 3 === 0 && k > 0) { out = ',' + out; }
+    }
+    return (neg ? '−' : '') + out + '.' + frac;
+  }
+  function moneyHTML(v, cls) {
+    return '<span class="money ' + (cls || 'money--md') + '"><span class="cur" aria-hidden="true">&#8377;</span>' +
+           '<span class="sr-only">Indian rupees </span>' + formatMoney(v) + '</span>';
+  }
+  function stamp(iso) { return iso.replace('T', ' ').replace('Z', ''); }
+  var $ = function (id) { return document.getElementById(id); };
+
+  var BADGE = { APPLIED: 'b-info', UNDER_REVIEW: 'b-warn', APPROVED: 'b-ok', REJECTED: 'b-danger', DISBURSED: 'b-info' };
+  var DOT = { APPLIED: 'd-info', UNDER_REVIEW: 'd-warn', APPROVED: 'd-ok', REJECTED: 'd-danger', DISBURSED: 'd-info' };
+
+  var ADMIN = '0a0a0a0a-1b1b-4c4c-8d8d-9e9e9e9e9e9e';
+  var CUST = '3f2a9c10-7d4e-4b8a-9f11-2c5d6e7f8a90';
+
+  var LOANS = [
+    { id: 'd4e5f6a7-b8c9-4012-b3c4-d5e6f7a8b9c0', principal: '250000.00', tenure_months: 36,
+      declared_monthly_income: '85000.00', purpose: 'Home renovation — kitchen and roof repair',
+      status: 'DISBURSED', disbursement_account_id: '7b1f0b0e-1c2d-4a5b-9c8d-0e1f2a3b4c5d',
+      disbursement_account_number: 'HZN0000000101',
+      created_at: '2026-07-28T12:00:00Z', updated_at: '2026-08-18T16:20:10Z',
+      timeline: [
+        { from_status: null, to_status: 'APPLIED', actor_id: CUST, actor_role: 'CUSTOMER', reason: null, created_at: '2026-07-28T12:00:00Z' },
+        { from_status: 'APPLIED', to_status: 'UNDER_REVIEW', actor_id: ADMIN, actor_role: 'ADMIN', reason: null, created_at: '2026-08-14T14:02:18Z' },
+        { from_status: 'UNDER_REVIEW', to_status: 'APPROVED', actor_id: ADMIN, actor_role: 'ADMIN', reason: 'Documentation complete and consistent with the stated purpose.', created_at: '2026-08-16T14:31:09Z' },
+        { from_status: 'APPROVED', to_status: 'DISBURSED', actor_id: ADMIN, actor_role: 'ADMIN', reason: null, created_at: '2026-08-18T16:20:10Z' }
+      ] },
+    { id: 'e5f6a7b8-c9d0-4123-c4d5-e6f7a8b9c0d1', principal: '40000.00', tenure_months: 12,
+      declared_monthly_income: null, purpose: 'Replace a failed laptop used for freelance work',
+      status: 'REJECTED', disbursement_account_id: null,
+      created_at: '2026-08-02T09:15:00Z', updated_at: '2026-08-09T11:40:52Z',
+      timeline: [
+        { from_status: null, to_status: 'APPLIED', actor_id: CUST, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-02T09:15:00Z' },
+        { from_status: 'APPLIED', to_status: 'UNDER_REVIEW', actor_id: ADMIN, actor_role: 'ADMIN', reason: 'Opening review.', created_at: '2026-08-06T10:22:04Z' },
+        { from_status: 'UNDER_REVIEW', to_status: 'REJECTED', actor_id: ADMIN, actor_role: 'ADMIN', reason: 'Insufficient documentation — the supporting invoice was not attached to the application.', created_at: '2026-08-09T11:40:52Z' }
+      ] },
+    { id: 'f6a7b8c9-d0e1-4234-d5e6-f7a8b9c0d1e2', principal: '120000.00', tenure_months: 24,
+      declared_monthly_income: '85000.00', purpose: 'Consolidate two outstanding store credit balances',
+      status: 'UNDER_REVIEW', disbursement_account_id: null,
+      created_at: '2026-08-15T08:45:00Z', updated_at: '2026-08-18T09:12:30Z',
+      timeline: [
+        { from_status: null, to_status: 'APPLIED', actor_id: CUST, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-15T08:45:00Z' },
+        { from_status: 'APPLIED', to_status: 'UNDER_REVIEW', actor_id: ADMIN, actor_role: 'ADMIN', reason: null, created_at: '2026-08-18T09:12:30Z' }
+      ] },
+    { id: 'a7b8c9d0-e1f2-4345-e6f7-a8b9c0d1e2f3', principal: '18500.50', tenure_months: 6,
+      declared_monthly_income: '85000.00', purpose: 'Dental treatment not covered by insurance',
+      status: 'APPLIED', disbursement_account_id: null,
+      created_at: '2026-08-19T07:30:00Z', updated_at: '2026-08-19T07:30:00Z',
+      timeline: [
+        { from_status: null, to_status: 'APPLIED', actor_id: CUST, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-19T07:30:00Z' }
+      ] }
+  ];
+
+  var selected = LOANS[0].id;
+
+  function renderList() {
+    $('loan-list').innerHTML = LOANS.map(function (l) {
+      return '<li><button type="button" class="loan" data-testid="loan-row" data-loan-id="' + l.id + '" ' +
+        'aria-pressed="' + (l.id === selected) + '">' +
+        '<span class="loan-head">' +
+          '<span class="money money--lg"><span class="cur" aria-hidden="true">&#8377;</span>' +
+          '<span class="sr-only">Indian rupees </span>' + formatMoney(l.principal) + '</span>' +
+          '<span class="badge ' + BADGE[l.status] + '" data-testid="loan-status-badge">' + l.status + '</span>' +
+        '</span>' +
+        '<span class="small muted" style="display:block;margin-top:var(--s-2)">' +
+          l.tenure_months + ' months · applied ' + l.created_at.slice(0, 10) + '</span>' +
+        '<span class="small" style="display:block;margin-top:6px;color:var(--ink-700)">' + l.purpose + '</span>' +
+      '</button></li>';
+    }).join('');
+  }
+
+  function renderDetail() {
+    var l = LOANS.filter(function (x) { return x.id === selected; })[0];
+    if (!l) { $('loan-detail').innerHTML = ''; return; }
+
+    var extra = '';
+    if (l.status === 'REJECTED') {
+      var r = l.timeline[l.timeline.length - 1];
+      extra = '<div class="alert a-danger" role="status" data-testid="loan-rejection-notice">' +
+        '<h3>Application rejected</h3><p><strong>Reason recorded by the reviewer:</strong> ' +
+        '<span data-testid="loan-rejection-reason">' + r.reason + '</span></p></div>';
+    } else if (l.status === 'DISBURSED') {
+      extra = '<div class="alert a-ok" role="status" data-testid="loan-disbursement-notice">' +
+        '<h3>Funds released</h3><p>' + moneyHTML(l.principal, 'money--md') + ' was credited to your savings account ' +
+        '<span class="mono">' + l.disbursement_account_number + '</span> on ' +
+        '<span class="ts">' + stamp(l.updated_at) + '</span>. ' +
+        'The credited amount appears on your statement as “Loan disbursement”.</p></div>';
+    } else if (l.status === 'UNDER_REVIEW') {
+      extra = '<div class="alert a-warn" role="status"><h3>With a reviewer now</h3>' +
+        '<p>An administrator has opened your application. You will be notified when a decision is recorded.</p></div>';
+    } else {
+      extra = '<div class="alert a-info" role="status"><h3>Waiting to be picked up</h3>' +
+        '<p>Your application is in the queue. Nothing further is needed from you.</p></div>';
+    }
+
+    $('loan-detail').innerHTML =
+      '<div class="card">' +
+        '<h3>Application ' + l.id.slice(0, 8) + '</h3>' +
+        '<dl class="kv" style="margin-top:var(--s-4)">' +
+          '<dt>Principal</dt><dd data-testid="loan-detail-principal">' + moneyHTML(l.principal, 'money--md') + '</dd>' +
+          '<dt>Tenure</dt><dd class="mono">' + l.tenure_months + ' months</dd>' +
+          '<dt>Purpose</dt><dd>' + l.purpose + '</dd>' +
+          '<dt>Monthly income</dt><dd>' +
+            (l.declared_monthly_income
+              ? moneyHTML(l.declared_monthly_income, 'money--sm') + ' <span class="small muted">(supplied for the reviewer; not used in any calculation)</span>'
+              : '<span class="muted small">Not supplied — optional, and its absence changes nothing</span>') +
+          '</dd>' +
+          '<dt>Status</dt><dd><span class="badge ' + BADGE[l.status] + '">' + l.status + '</span></dd>' +
+        '</dl>' +
+        extra +
+        '<h4 style="margin-top:var(--s-5)">History</h4>' +
+        '<p class="small muted">Every transition, in order, with the actor and their reason.</p>' +
+        '<ol class="tl" data-testid="loan-timeline">' + l.timeline.map(function (t) {
+          return '<li data-testid="loan-timeline-entry">' +
+            '<span class="tl-dot ' + DOT[t.to_status] + '" aria-hidden="true"></span>' +
+            '<span class="row" style="gap:var(--s-2)">' +
+              '<span class="badge ' + BADGE[t.to_status] + '">' + t.to_status + '</span>' +
+              '<span class="small muted">' + (t.from_status ? 'from ' + t.from_status : 'application submitted') + '</span>' +
+            '</span>' +
+            '<p class="ts" data-testid="loan-timeline-timestamp" style="margin:6px 0 0">' + stamp(t.created_at) +
+              ' · <span data-testid="loan-timeline-actor">' + t.actor_role + ' ' + t.actor_id.slice(0, 8) + '</span></p>' +
+            (t.reason
+              ? '<p class="tl-reason" data-testid="loan-timeline-reason"><strong>Reason:</strong> ' + t.reason + '</p>'
+              : '<p class="small muted" style="margin:6px 0 0">No reason recorded — a reason is mandatory only on approve and reject.</p>') +
+          '</li>';
+        }).join('') + '</ol>' +
+      '</div>';
+  }
+
+  renderList(); renderDetail();
+
+  $('loan-list').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-loan-id]');
+    if (!b) return;
+    selected = b.dataset.loanId;
+    renderList(); renderDetail();
+    $('loan-detail').scrollIntoView({ block: 'nearest' });
+  });
+
+  /* -------- structural validation only: no eligibility rule is evaluated here -------- */
+  function setErr(inputId, errId, msg, describedBy) {
+    var input = $(inputId), err = $(errId);
+    if (msg) {
+      err.textContent = msg; err.classList.remove('hidden');
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', describedBy + ' ' + errId);
+    } else {
+      err.classList.add('hidden');
+      input.removeAttribute('aria-invalid');
+      input.setAttribute('aria-describedby', describedBy);
+    }
+  }
+
+  $('loan-application-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p = $('loan-principal').value.trim();
+    var t = $('loan-tenure-months').value.trim();
+    var purpose = $('loan-purpose').value.trim();
+
+    var pErr = !p ? 'Enter the amount you want to borrow.'
+      : !/^\d+(\.\d{1,2})?$/.test(p)
+        ? (/\.\d{3,}$/.test(p) ? 'Enter an amount with at most 2 decimal places.'
+                               : 'Enter the amount using digits and at most one decimal point, for example 250000.00.')
+        : (!/[1-9]/.test(p) ? 'Enter an amount greater than 0.00.' : null);
+    var tErr = !/^\d+$/.test(t) ? 'Enter a whole number of months.'
+      : (!/[1-9]/.test(t) ? 'Enter a number of months greater than zero.' : null);
+    var uErr = !purpose ? 'Tell us what the loan is for.' : null;
+
+    setErr('loan-principal', 'principal-err', pErr, 'principal-hint');
+    setErr('loan-tenure-months', 'tenure-err', tErr, 'tenure-hint');
+    setErr('loan-purpose', 'purpose-err', uErr, 'purpose-hint');
+    if (pErr) { $('loan-principal').focus(); return; }
+    if (tErr) { $('loan-tenure-months').focus(); return; }
+    if (uErr) { $('loan-purpose').focus(); return; }
+
+    var income = $('loan-declared-monthly-income').value.trim();
+    var loan = {
+      id: 'b8c9d0e1-f2a3-4456-f7a8-b9c0d1e2f3a4', principal: p, tenure_months: t,
+      declared_monthly_income: income || null, purpose: purpose, status: 'APPLIED',
+      disbursement_account_id: null, created_at: '2026-08-19T10:34:00Z', updated_at: '2026-08-19T10:34:00Z',
+      timeline: [{ from_status: null, to_status: 'APPLIED', actor_id: CUST, actor_role: 'CUSTOMER', reason: null, created_at: '2026-08-19T10:34:00Z' }]
+    };
+    LOANS.unshift(loan);
+    selected = loan.id;
+    renderList(); renderDetail();
+    $('loan-form-live').innerHTML = '<div class="alert a-ok" role="status" data-testid="loan-submit-success">' +
+      '<h3>Application submitted</h3><p>Recorded in status <span class="badge b-info">APPLIED</span> for ' +
+      moneyHTML(p, 'money--sm') + ' over ' + t + ' months. HTTP 201. An administrator will review it and record a ' +
+      'reason with their decision.</p></div>';
+  });
+
+  /* -------------------------------- state switcher -------------------------------- */
+  document.querySelectorAll('[data-loans]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-loans]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      var empty = b.dataset.loans === 'empty';
+      $('loans-populated').classList.toggle('hidden', empty);
+      $('loans-empty').classList.toggle('hidden', !empty);
+    });
+  });
+  document.querySelector('[data-testid="loans-empty-apply-button"]').addEventListener('click', function () {
+    document.querySelector('[data-loans="populated"]').click();
+    $('loan-principal').focus();
+  });
+})();
+</script>
+</body>
+</html>

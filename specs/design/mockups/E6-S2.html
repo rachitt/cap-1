@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register and KYC — Horizon Bank mockup (E6-S2)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0B1F33;--ink-2:#1C3A57;--canvas:#F1F4F8;--surface:#FFFFFF;--line:#D9E1EA;
+  --muted:#54677A;--accent:#A2541F;--accent-soft:#FAF0E7;
+  --ok:#186B41;--ok-soft:#E7F3EC;--warn:#7C5200;--warn-soft:#FCF2DF;
+  --danger:#A5251B;--danger-soft:#FCEBE9;
+  --r:10px;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+body{font-family:var(--sans);background:var(--canvas);color:var(--ink);line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.money{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-.01em}
+a{color:var(--accent)}
+/* ---------- chrome ---------- */
+.top{background:var(--ink);color:#fff;padding:0 clamp(16px,4vw,32px)}
+.top-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:24px;
+  min-height:60px;flex-wrap:wrap}
+.mark{font-family:var(--serif);font-size:19px;letter-spacing:.02em;padding:8px 0}
+.mark span{color:#D9A06B}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav a{color:#C3D2E0;text-decoration:none;padding:8px 12px;border-radius:6px;font-size:14px}
+nav a[aria-current="page"]{background:rgba(255,255,255,.12);color:#fff}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+a:focus-visible{outline:3px solid #D9A06B;outline-offset:2px}
+main{max-width:1200px;margin:0 auto;padding:clamp(20px,4vw,36px) clamp(16px,4vw,32px) 64px}
+h1{font-family:var(--serif);font-size:clamp(24px,4vw,31px);font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+  font-weight:600;margin-bottom:12px}
+.sub{color:var(--muted);margin-top:6px;font-size:15px;max-width:62ch}
+.head{margin-bottom:28px}
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.grid{display:grid;gap:16px}
+@media(min-width:768px){.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1100px){.split{grid-template-columns:1.6fr 1fr}}
+/* ---------- balance ---------- */
+.bal{font-size:clamp(30px,6vw,40px);font-weight:600;letter-spacing:-.02em;margin:6px 0 2px}
+.acct{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* ---------- pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:4px 10px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--danger-soft);color:var(--danger)}
+.p-neutral{background:#EDF1F6;color:var(--ink-2)}
+/* ---------- table ---------- */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line);background:#FAFBFD}
+td{padding:13px 16px;border-bottom:1px solid #EEF2F6}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+.debit{color:var(--danger)}
+.credit{color:var(--ok)}
+/* ---------- forms ---------- */
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.hint{font-size:12.5px;color:var(--muted);font-weight:400;margin-top:5px}
+input,select,textarea{width:100%;padding:11px 13px;border:1px solid #B9C6D4;border-radius:8px;
+  font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{border-color:var(--ink-2)}
+.field{margin-bottom:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;
+  border-radius:8px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-ghost{background:#fff;border-color:#B9C6D4;color:var(--ink)}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-bad{background:#fff;border-color:var(--danger);color:var(--danger)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+/* ---------- messages ---------- */
+.note{border-left:3px solid;padding:13px 16px;border-radius:0 8px 8px 0;font-size:14px}
+.n-ok{background:var(--ok-soft);border-color:var(--ok)}
+.n-bad{background:var(--danger-soft);border-color:var(--danger)}
+.n-info{background:var(--accent-soft);border-color:var(--accent)}
+.err{color:var(--danger);font-size:13px;margin-top:6px;font-weight:500}
+/* ---------- timeline ---------- */
+.tl{list-style:none;position:relative;padding-left:26px}
+.tl::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tl li{position:relative;padding:0 0 22px}
+.tl li::before{content:"";position:absolute;left:-24px;top:5px;width:11px;height:11px;
+  border-radius:50%;background:#fff;border:2px solid var(--line)}
+.tl li.done::before{background:var(--ok);border-color:var(--ok)}
+.tl li.now::before{background:var(--accent);border-color:var(--accent)}
+.tl .when{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl .what{font-weight:600;font-size:14.5px}
+.tl .why{font-size:13.5px;color:var(--muted);margin-top:3px}
+/* ---------- misc ---------- */
+.kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;
+  border-bottom:1px solid #EEF2F6;font-size:14px}
+.kv:last-child{border:0}
+.kv dt{color:var(--muted)}
+.kv dd{font-weight:600;font-variant-numeric:tabular-nums}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:14px 16px;
+  font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);flex-wrap:wrap}
+.pager button{padding:7px 12px;border:1px solid #B9C6D4;background:#fff;border-radius:7px;
+  font:inherit;cursor:pointer}
+.spec{max-width:1200px;margin:0 auto 0;padding:16px clamp(16px,4vw,32px) 40px;
+  font-size:13px;color:var(--muted)}
+.spec code{background:#E7EDF4;padding:1px 5px;border-radius:4px;font-size:12px;color:var(--ink-2)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.api{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+  background:#E7EDF4;color:#1C3A57;border:1px solid #D9E1EA;border-radius:5px;padding:2px 6px;
+  margin:4px 0 0 8px;vertical-align:middle;white-space:nowrap;font-weight:600}
+.api-note{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+  color:#54677A;margin-top:6px}
+</style></head><body>
+<a class="sr" href="#main">Skip to main content</a>
+<header class="top" data-testid="app-header"><div class="top-in">
+  <div class="mark">Horizon<span>&#183;</span>Bank</div>
+  <nav aria-label="Primary" data-testid="app-nav"><a href="#">Dashboard</a><a href="#">Transfer</a><a href="#">Beneficiaries</a><a href="#">Loans</a></nav>
+</div></header>
+<main id="main" data-testid="app-main">
+
+<div class="head"><h1>Open your account</h1>
+<p class="sub">Registration, the KYC stub, then login activation. Three steps, one screen family.</p></div>
+
+<div class="grid split" style="gap:20px">
+  <div class="card">
+    <h2>Step 1 &mdash; Your details</h2>
+    <div class="field"><label for="n">Full name</label><input id="n" name="full_name" data-testid="register-full-name" value="Priya Raman"></div>
+    <div class="field"><label for="e">Email</label><input id="e" name="email" type="email" data-testid="register-email" value="priya.raman@example.test">
+      <p class="hint">Used to sign in. Must be unique.</p></div>
+    <div class="field"><label for="dob">Date of birth</label><input id="dob" name="date_of_birth" type="date" data-testid="register-date-of-birth" value="1991-04-12">
+      <p class="hint">Held as profile information only. No eligibility check is applied to it.</p></div>
+    <div class="field"><label for="p">Password</label><input id="p" name="password" type="password" data-testid="register-password" value="············">
+      <p class="hint">At least 12 characters. Stored hashed; never written to a log.</p></div>
+
+    <h2 style="margin-top:28px">Step 2 &mdash; Identity check</h2>
+    <div class="field"><label for="dt">Document type</label>
+      <select id="dt" name="document_type" data-testid="kyc-document-type"><option>Passport</option><option>National ID</option><option>Driving licence</option></select></div>
+    <div class="field"><label for="dn">Document number</label><input id="dn" name="document_number" data-testid="kyc-document-number" value="P4471902">
+      <p class="hint">Verification is stubbed. The number is redacted in logs and never returned in full.</p></div>
+    <div class="row"><button class="btn btn-primary" data-testid="kyc-submit">Submit and verify</button><code class="api">POST /api/v1/auth/kyc</code>
+      <button class="btn btn-ghost" data-testid="register-submit">Save for later</button><code class="api">POST /api/v1/auth/register</code></div>
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Progress</h2>
+      <ol class="tl" style="margin-top:4px">
+        <li class="done"><p class="what">Details captured</p><p class="when">10:14 UTC</p></li>
+        <li class="now"><p class="what">Identity check</p><p class="why">Awaiting stub verdict</p></li>
+        <li><p class="what">Login activated</p><p class="why">Unlocks after verification</p></li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>Sign in</h2>
+      <div class="field"><label for="le">Email</label><input id="le" name="email" type="email" data-testid="login-email"></div>
+      <div class="field"><label for="lp">Password</label><input id="lp" name="password" type="password" data-testid="login-password"></div>
+      <button class="btn btn-primary" style="width:100%" data-testid="login-submit">Sign in</button><code class="api">POST /api/v1/auth/login</code><span class="api-note">403 PENDING_KYC on an unverified customer &mdash; distinct from 401.</span>
+      <div class="note n-bad" role="alert" style="margin-top:16px">
+        <strong>Identity check pending.</strong> Your account is not active yet, so sign-in is
+        unavailable. This is reported separately from an incorrect password.</div>
+    </div>
+  </div>
+</div>
+
+</main>
+<footer data-testid="app-footer"><div class="spec"><strong>Mockup E6-S2</strong> &mdash; AC-01. The pending-KYC refusal is a distinct state from a credential failure, so the path is
+unambiguously testable. Date of birth is captured but gated on by nothing.</div>
+</footer></body></html>
