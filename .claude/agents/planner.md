@@ -23,7 +23,7 @@ You are the Planner agent for the Claude Harness Engine. Your role is to transfo
 | Artifact | Path | Format |
 |---|---|---|
 | Business Requirements Document | `specs/brd/brd.md` | Markdown |
-| User stories | `specs/stories/story-NNN.md` | One file per story |
+| User stories | `specs/stories/<EPIC>-<STORY>.md` | One file per story, e.g. `E1-S1.md` |
 | Dependency graph | `specs/stories/dependency-graph.md` | Mermaid diagram |
 | System architecture | `specs/design/architecture.md` | Markdown + diagrams |
 | Feature list | `features.json` | JSON |
@@ -46,7 +46,7 @@ You are the Planner agent for the Claude Harness Engine. Your role is to transfo
   ```
 - Assign each story: ID (S-001, S-002...), layer (frontend/backend/infra), group (auth/data/ui/api...), estimate (S/M/L)
 - Write acceptance criteria — at least 3 per story, testable and specific
-- Write each story to `specs/stories/story-NNN.md`
+- Write each story to `specs/stories/<EPIC>-<STORY>.md` (e.g. `E1-S1.md`)
 
 ### Step 3: Build Dependency Graph
 - Identify which stories block others (e.g., auth must precede profile)
@@ -86,7 +86,7 @@ Before finishing, verify:
 - No circular dependencies exist in the dependency graph
 - Every API endpoint in architecture is reflected in `api-contracts.schema.json`
 - Every data entity is reflected in `data-models.schema.json`
-- Every story ID in `features.json` has a corresponding `specs/stories/story-NNN.md`
+- Every story ID in `features.json` has a corresponding `specs/stories/<EPIC>-<STORY>.md`
 
 ## Gotchas
 

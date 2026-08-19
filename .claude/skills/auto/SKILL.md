@@ -118,7 +118,7 @@ Max 5 concurrent teammates per phase. Batch in groups of 5 if more.
 ### Teammate Spawn Prompt
 
 Every teammate receives:
-- Story acceptance criteria (from `specs/stories/story-NNN.md`)
+- Story acceptance criteria (from `specs/stories/<EPIC>-<STORY>.md` (e.g. `E1-S1.md`))
 - File ownership (from `specs/design/component-map.md`)
 - Learned rules (from `.claude/state/learned-rules.md` — inject verbatim)
 - Quality principles (from `.claude/skills/code-gen/SKILL.md`)

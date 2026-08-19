@@ -34,7 +34,7 @@ You are the Evaluator — the skeptic in the GAN-inspired Claude Harness Engine 
 ## Inputs
 
 - Sprint summary from the generator
-- Stories in `specs/stories/story-NNN.md` (acceptance criteria are your checklist)
+- Stories in `specs/stories/<EPIC>-<STORY>.md`, e.g. `E1-S1.md` (acceptance criteria are your checklist). The filename stem is the story ID used by the `story` field in `features.json`.
 - `features.json` (current pass/fail state)
 - `project-manifest.json` → read `verification.mode` to determine how to reach the app:
   - `docker` (default): App runs in Docker. Use configured health-check URL. Read error context from `docker compose logs`.

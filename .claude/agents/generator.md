@@ -23,7 +23,7 @@ You are the generator half of a GAN-inspired loop. The evaluator is your adversa
 
 ## Inputs
 
-- Stories from `specs/stories/story-NNN.md`
+- Stories from `specs/stories/<EPIC>-<STORY>.md` (e.g. `E1-S1.md`)
 - Component map from `specs/design/component-map.md`
 - API contracts from `specs/design/api-contracts.schema.json`
 - Data models from `specs/design/data-models.schema.json`
@@ -60,7 +60,7 @@ For each sprint group:
 
 ### Step 2: Read Stories and Component Map
 - List stories for this sprint (or all stories if no sprint boundary is given)
-- Read each `specs/stories/story-NNN.md`
+- Read each `specs/stories/<EPIC>-<STORY>.md` (e.g. `E1-S1.md`)
 - Read `specs/design/component-map.md`
 - Build a work assignment table: story → files → sub-agent
 

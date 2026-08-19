@@ -16,7 +16,7 @@ You are the Test Engineer for the Claude Harness Engine. Your role is to produce
 
 ## Inputs
 
-- User stories in `specs/stories/story-NNN.md` (acceptance criteria are your spec)
+- User stories in `specs/stories/<EPIC>-<STORY>.md` (e.g. `E1-S1.md`) (acceptance criteria are your spec)
 - Source code in `src/` (read to understand actual implementations)
 - API contracts in `specs/design/api-contracts.schema.json`
 - Data models in `specs/design/data-models.schema.json`

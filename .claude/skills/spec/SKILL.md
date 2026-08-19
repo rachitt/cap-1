@@ -82,7 +82,7 @@ This is the key enhancement over forge_v2. Transform every acceptance criterion 
 
 **Mapping rule:** Each acceptance criterion produces 1-3 feature entries. The feature description must be a specific, observable behavior. Each feature has executable steps describing how to verify it.
 
-**Output file:** `specs/features.json`
+**Output file:** `features.json` at the repository root. The evaluator, `/auto`, `/evaluate`, and `/review` all read the root path; writing to `specs/` creates a split source of truth.
 
 **Schema for each feature entry:**
 
@@ -135,7 +135,7 @@ Display:
 |------|---------|
 | `specs/stories/dependency-graph.md` | Parallel execution groups with dependency mapping |
 | `specs/stories/E{n}-S{n}.md` | One file per story |
-| `specs/features.json` | Machine-readable feature list for evaluator |
+| `features.json` (repository root) | Machine-readable feature list for evaluator |
 
 ---
 
