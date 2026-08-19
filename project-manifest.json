@@ -1,0 +1,75 @@
+{
+  "name": "claudeforge-banking-suite",
+  "business_case_id": "BC-AINE-001",
+  "description": "ClaudeForge Banking Suite - a digital-first retail banking platform for Horizon Bank (onboarding + KYC stub, savings accounts, atomic transfers, beneficiaries, personal loans, admin loan queue, append-only audit ledger, stub notifications), built end-to-end by Claude Code agents with no hand-written production code.",
+  "domain": "banking-retail-digital",
+  "stack": {
+    "backend": {
+      "language": "python",
+      "version": "3.12",
+      "framework": "fastapi",
+      "package_manager": "uv",
+      "linter": "ruff",
+      "typechecker": "mypy",
+      "test_runner": "pytest"
+    },
+    "frontend": {
+      "language": "typescript",
+      "framework": "react",
+      "build_tool": "vite",
+      "package_manager": "npm",
+      "linter": "eslint",
+      "typechecker": "tsc",
+      "test_runner": "vitest"
+    },
+    "database": {
+      "primary": "sqlite",
+      "secondary": "none",
+      "migrations": "alembic",
+      "migration_policy": "append-only"
+    },
+    "deployment": {
+      "method": "local",
+      "services": ["backend", "frontend"]
+    }
+  },
+  "evaluation": {
+    "api_base_url": "http://localhost:8000",
+    "ui_base_url": "http://localhost:3000",
+    "health_check": "http://localhost:8000/health",
+    "design_score_threshold": 8,
+    "design_max_iterations": 10,
+    "test_corpus_dir": "specs/test_artefacts"
+  },
+  "execution": {
+    "default_mode": "full",
+    "max_self_heal_attempts": 3,
+    "max_auto_iterations": 50,
+    "coverage_threshold": 80,
+    "session_chaining": true,
+    "agent_team_size": "auto",
+    "teammate_model": "sonnet"
+  },
+  "verification": {
+    "mode": "local",
+    "health_check": {
+      "url": "http://localhost:8000/health",
+      "retries": 5,
+      "backoff_seconds": 2
+    },
+    "local": {
+      "backend_url": "http://localhost:8000",
+      "frontend_url": "http://localhost:3000",
+      "start_commands": [
+        "cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 &",
+        "cd frontend && npm run dev -- --port 3000 &"
+      ]
+    }
+  },
+  "constraints": {
+    "no_hand_coding": true,
+    "spec_is_truth": true,
+    "pr_only_merge": true,
+    "synthetic_data_only": true
+  }
+}
